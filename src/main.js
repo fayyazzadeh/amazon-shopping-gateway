@@ -19,8 +19,8 @@ app.innerHTML = `
       <span class="eyebrow">خرید ساده‌تر از آمازون</span>
       <h1>لینک محصول آمازون را وارد کنید</h1>
       <p>
-        در این نسخه آزمایشی، لینک محصول را بررسی می‌کنیم و ساختار لازم برای
-        استعلام قیمت و ثبت درخواست خرید را آماده می‌کنیم.
+        در این نسخه آزمایشی، لینک محصول را بررسی می‌کنیم و ASIN را از لینک‌های مستقیم
+        استخراج می‌کنیم تا برای استعلام قیمت آماده شود.
       </p>
 
       <form id="product-form" class="card">
@@ -46,8 +46,8 @@ app.innerHTML = `
     <section class="features">
       <article>
         <span>01</span>
-        <h2>لینک محصول</h2>
-        <p>لینک Amazon را وارد کنید تا برای استعلام آماده شود.</p>
+        <h2>تشخیص محصول</h2>
+        <p>از لینک مستقیم، بازار و ASIN محصول را تشخیص می‌دهیم.</p>
       </article>
       <article>
         <span>02</span>
@@ -67,6 +67,31 @@ app.innerHTML = `
     </footer>
   </main>
 `;
+
+function getMarketplace(host) {
+  if (host === "amazon.ae" || host.endsWith(".amazon.ae")) return "Amazon UAE";
+  if (host === "amazon.com" || host.endsWith(".amazon.com")) return "Amazon US";
+  return "Amazon";
+}
+
+function extractAsin(pathname) {
+  const patterns = [
+    /\/dp\/([A-Z0-9]{10})(?:[/?]|$)/i,
+    /\/gp\/product\/([A-Z0-9]{10})(?:[/?]|$)/i,
+    /\/gp\/aw\/d\/([A-Z0-9]{10})(?:[/?]|$)/i
+  ];
+
+  for (const pattern of patterns) {
+    const match = pathname.match(pattern);
+    if (match) return match[1].toUpperCase();
+  }
+
+  return null;
+}
+
+function isShortAmazonLink(host) {
+  return host === "amzn.to" || host === "amzn.eu" || host === "a.co";
+}
 
 document.querySelector("#product-form").addEventListener("submit", (event) => {
   event.preventDefault();
@@ -90,9 +115,7 @@ document.querySelector("#product-form").addEventListener("submit", (event) => {
     host.endsWith(".amazon.com") ||
     host === "amazon.ae" ||
     host.endsWith(".amazon.ae") ||
-    host === "amzn.to" ||
-    host === "amzn.eu" ||
-    host === "a.co";
+    isShortAmazonLink(host);
 
   result.hidden = false;
 
@@ -102,9 +125,33 @@ document.querySelector("#product-form").addEventListener("submit", (event) => {
     return;
   }
 
-  result.className = "result success";
+  const asin = extractAsin(url.pathname);
+
+  if (asin) {
+    const marketplace = getMarketplace(host);
+    result.className = "result success";
+    result.innerHTML = `
+      <strong>محصول شناسایی شد.</strong>
+      <span>بازار: ${marketplace}</span>
+      <span>ASIN: <code>${asin}</code></span>
+      <span>مرحله بعد: دریافت اطلاعات و استعلام قیمت محصول.</span>
+    `;
+    return;
+  }
+
+  if (isShortAmazonLink(host)) {
+    result.className = "result success";
+    result.innerHTML = `
+      <strong>لینک کوتاه شناسایی شد.</strong>
+      <span>این لینک معتبر است، اما ASIN داخل آدرس کوتاه قابل استخراج نیست.</span>
+      <span>در مرحله API، لینک به مقصد نهایی resolve می‌شود و ASIN استخراج خواهد شد.</span>
+    `;
+    return;
+  }
+
+  result.className = "result error";
   result.innerHTML = `
-    <strong>لینک دریافت شد.</strong>
-    <span>این محصول برای مرحله بعدی استعلام آماده است.</span>
+    <strong>لینک Amazon پذیرفته شد، اما ASIN پیدا نشد.</strong>
+    <span>لطفاً لینک مستقیم صفحه محصول را وارد کنید.</span>
   `;
 });
