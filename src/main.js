@@ -93,7 +93,7 @@ function isShortAmazonLink(host) {
   return host === "amzn.to" || host === "amzn.eu" || host === "a.co";
 }
 
-document.querySelector("#product-form").addEventListener("submit", (event) => {
+document.querySelector("#product-form").addEventListener("submit", async (event) => {
   event.preventDefault();
 
   const input = document.querySelector("#amazon-url");
