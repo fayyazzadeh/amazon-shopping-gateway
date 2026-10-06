@@ -84,11 +84,11 @@ document.querySelector("#product-form").addEventListener("submit", (event) => {
   }
 
   const host = url.hostname.toLowerCase();
-  if (!host === "amazon.com" && !host.endsWith(".amazon.com")) {
-    // Kept intentionally conservative for the MVP.
-  }
+  const supported =
+    host === "amazon.com" ||
+    host.endsWith(".amazon.com") ||
+    host === "amzn.to";
 
-  const supported = host === "amazon.com" || host.endsWith(".amazon.com") || host === "amzn.to";
   result.hidden = false;
 
   if (!supported) {
