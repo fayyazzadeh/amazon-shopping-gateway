@@ -125,6 +125,10 @@ export default {
       return json(result, result.ok ? 200 : 400);
     }
 
+    if (url.pathname === "/" || url.pathname === "/index.html") {
+      return env.ASSETS.fetch(new Request(new URL("/index.html", url), request));
+    }
+
     return env.ASSETS.fetch(request);
   }
 };
