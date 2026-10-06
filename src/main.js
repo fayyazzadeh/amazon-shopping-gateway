@@ -17,8 +17,7 @@ const demoProduct = {
   sizes: ["Small", "Medium", "Large", "X-Large", "XX-Large"],
 };
 
-let selectedColor = "black";
-let selectedSize = "X-Large";
+let currentProduct = null;
 
 app.innerHTML = `
   <main class="page">
@@ -53,10 +52,10 @@ app.innerHTML = `
     </section>
 
     <section id="product-preview" class="product-shell" hidden>
-      <div class="section-kicker"><span>پیش‌نمایش محصول</span><small>اطلاعات نمونه برای طراحی رابط</small></div>
+      <div class="section-kicker"><span>اطلاعات محصول</span><small id="product-source-label">محصول انتخاب‌شده</small></div>
       <div class="product-layout">
         <div class="gallery-panel">
-          <div class="demo-badge">SAMPLE</div>
+          <div class="demo-badge" id="product-badge">PRODUCT</div>
           <div class="product-visual" id="product-visual" aria-label="تصویر نمونه محصول">
             <div class="shirt shirt-back"></div><div class="shirt shirt-front"><span>BOSS</span></div>
           </div>
@@ -64,26 +63,23 @@ app.innerHTML = `
         </div>
 
         <div class="product-info">
-          <div class="store-link">Visit the BOSS Store</div>
-          <h2>${demoProduct.title}</h2>
-          <div class="rating"><strong>${demoProduct.rating}</strong><span>★★★★★</span><a href="#reviews">(${demoProduct.reviews})</a></div>
+          <div class="store-link" id="product-store">Amazon Store</div>
+          <h2 id="product-title"></h2>
+          <div class="rating"><strong id="product-rating">—</strong><span>★★★★★</span><a id="product-reviews" href="#reviews">(اطلاعات در انتظار است)</a></div>
 
           <div class="divider"></div>
 
           <div class="option-block">
-            <div class="option-title">رنگ: <strong id="selected-color-label">Black</strong></div>
+            <div class="option-title">مدل‌ها و گزینه‌ها</div>
+            <div id="variation-status" class="variation-status">برای نمایش دقیق رنگ، سایز، تصویر، قیمت و Child ASIN باید اطلاعات واقعی محصول دریافت شود.</div>
             <div id="color-options" class="color-options"></div>
-          </div>
-
-          <div class="option-block">
-            <div class="option-title">سایز: <strong id="selected-size-label">X-Large</strong></div>
             <div id="size-options" class="size-options"></div>
           </div>
 
-          <div class="availability-note"><span class="dot"></span><span>وضعیت ارسال و موجودی پس از اتصال به سرویس اطلاعات آمازون بررسی می‌شود.</span></div>
+          <div class="availability-note"><span class="dot"></span><span id="availability-text">وضعیت موجودی، ارسال و فروشنده پس از دریافت اطلاعات واقعی Amazon بررسی می‌شود.</span></div>
 
           <div class="detail-grid">
-            <div><span>برند</span><strong>${demoProduct.brand}</strong></div>
+            <div><span>برند</span><strong id="product-brand">—</strong></div>
             <div><span>نوع</span><strong>پوشاک</strong></div>
             <div><span>مبدأ</span><strong>Amazon</strong></div>
           </div>
@@ -91,9 +87,9 @@ app.innerHTML = `
 
         <aside id="order" class="price-panel">
           <span class="panel-label">محاسبه سفارش</span>
-          <div class="sample-price"><small>قیمت نمونه Amazon</small><strong id="selected-price">$39.64</strong></div>
+          <div class="sample-price"><small>قیمت Amazon</small><strong id="selected-price">—</strong></div>
           <div class="price-lines">
-            <div><span>قیمت کالا</span><b id="line-product">$39.64</b></div>
+            <div><span>قیمت کالا</span><b id="line-product">—</b></div>
             <div><span>حمل و خدمات</span><b>پس از استعلام</b></div>
             <div><span>کارمزد خرید</span><b>پس از استعلام</b></div>
           </div>
@@ -136,89 +132,45 @@ function isShortAmazonLink(host) {
   return host === "amzn.to" || host === "amzn.eu" || host === "a.co";
 }
 
-function renderVariations() {
-  const colorRoot = document.querySelector("#color-options");
-  colorRoot.innerHTML = demoProduct.colors.map(color => `
-    <button type="button" class="color-option ${color.id === selectedColor ? "selected" : ""} ${!color.available ? "disabled" : ""}" data-color="${color.id}" ${!color.available ? "disabled" : ""}>
-      <span class="swatch swatch-${color.id}"></span><span>${color.name}</span><small>${color.price}</small>
-    </button>
-  `).join("");
-
-  document.querySelector("#size-options").innerHTML = demoProduct.sizes.map(size => `
-    <button type="button" class="size-option ${size === selectedSize ? "selected" : ""}" data-size="${size}">${size}</button>
-  `).join("");
-
-  const color = demoProduct.colors.find(item => item.id === selectedColor);
-  document.querySelector("#selected-color-label").textContent = color.name;
-  document.querySelector("#selected-size-label").textContent = selectedSize;
-  document.querySelector("#selected-price").textContent = color.price;
-  document.querySelector("#line-product").textContent = color.price;
-
-  colorRoot.querySelectorAll("[data-color]").forEach(button => button.addEventListener("click", () => {
-    selectedColor = button.dataset.color;
-    renderVariations();
-  }));
-  document.querySelectorAll("[data-size]").forEach(button => button.addEventListener("click", () => {
-    selectedSize = button.dataset.size;
-    renderVariations();
-  }));
+function slugToTitle(pathname) {
+  const segment = pathname.split("/").filter(Boolean).pop() || "";
+  return decodeURIComponent(segment)
+    .replace(/-/g, " ")
+    .replace(/\\b\\w/g, char => char.toUpperCase())
+    .trim();
 }
 
-function showProduct(asin, marketplace, resolvedUrl = "") {
+function renderVariations() {
+  const colorRoot = document.querySelector("#color-options");
+  const sizeRoot = document.querySelector("#size-options");
+  colorRoot.innerHTML = "";
+  sizeRoot.innerHTML = "";
+  document.querySelector("#variation-status").textContent =
+    "Variationهای واقعی محصول هنوز از منبع Amazon دریافت نشده‌اند؛ برای جلوگیری از نمایش اطلاعات اشتباه، گزینه‌های نمونه نمایش داده نمی‌شوند.";
+}
+
+function showProduct(asin, marketplace, resolvedUrl = "", sourceUrl = "") {
   const result = document.querySelector("#result");
+  const productUrl = resolvedUrl || sourceUrl;
+  const parsed = productUrl ? new URL(productUrl) : null;
+  const title = parsed ? slugToTitle(parsed.pathname) : "محصول Amazon";
+  currentProduct = { asin, marketplace, url: productUrl, title };
+
   result.hidden = false;
   result.className = "result success";
-  result.innerHTML = `<strong>محصول شناسایی شد</strong><span>بازار: ${marketplace}</span><span>ASIN: <code>${asin}</code></span>${resolvedUrl ? `<span><a href="${resolvedUrl}" target="_blank" rel="noreferrer">مشاهده لینک نهایی Amazon</a></span>` : ""}`;
+  result.innerHTML = `<strong>محصول انتخاب‌شده شناسایی شد</strong><span>بازار: ${marketplace}</span><span>ASIN: <code>${asin}</code></span>${productUrl ? `<span><a href="${productUrl}" target="_blank" rel="noreferrer">مشاهده محصول در Amazon</a></span>` : ""}`;
+
+  document.querySelector("#product-title").textContent = title;
+  document.querySelector("#product-store").textContent = `Amazon Store · ${marketplace}`;
+  document.querySelector("#product-brand").textContent = "در حال دریافت";
+  document.querySelector("#product-rating").textContent = "—";
+  document.querySelector("#product-reviews").textContent = "(در انتظار اطلاعات)";
+  document.querySelector("#selected-price").textContent = "—";
+  document.querySelector("#line-product").textContent = "—";
+  document.querySelector("#product-source-label").textContent = `ASIN ${asin} · ${marketplace}`;
+  document.querySelector("#product-badge").textContent = "SELECTED";
   document.querySelector("#product-preview").hidden = false;
   renderVariations();
   document.querySelector("#product-preview").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-document.querySelector("#product-form").addEventListener("submit", async event => {
-  event.preventDefault();
-  const input = document.querySelector("#amazon-url");
-  const result = document.querySelector("#result");
-  let url;
-  try { url = new URL(input.value.trim()); } catch {
-    result.hidden = false;
-    result.className = "result error";
-    result.textContent = "لطفاً یک لینک معتبر وارد کنید.";
-    return;
-  }
-
-  const host = url.hostname.toLowerCase();
-  const supported = host === "amazon.com" || host.endsWith(".amazon.com") || host === "amazon.ae" || host.endsWith(".amazon.ae") || isShortAmazonLink(host);
-  result.hidden = false;
-
-  if (!supported) {
-    result.className = "result error";
-    result.textContent = "فقط لینک‌های Amazon.com، Amazon.ae، amzn.to، amzn.eu و a.co پذیرفته می‌شوند.";
-    return;
-  }
-
-  const asin = extractAsin(url.pathname);
-  if (asin) {
-    showProduct(asin, getMarketplace(host));
-    return;
-  }
-
-  if (isShortAmazonLink(host)) {
-    result.className = "result loading";
-    result.innerHTML = "<strong>در حال شناسایی محصول...</strong><span>لینک کوتاه در حال بررسی است.</span>";
-    try {
-      const response = await fetch(`/api/resolve-product?url=${encodeURIComponent(url.toString())}`);
-      const data = await response.json();
-      if (!response.ok || !data.ok) throw new Error(data.message || "Resolve failed");
-      showProduct(data.asin, data.marketplace, data.resolvedUrl);
-    } catch (error) {
-      result.className = "result error";
-      result.innerHTML = `<strong>محصول شناسایی نشد.</strong><span>${error.message || "ارتباط با API برقرار نشد."}</span>`;
-    }
-    return;
-  }
-
-  result.className = "result error";
-  result.innerHTML = "<strong>ASIN پیدا نشد.</strong><span>لطفاً لینک مستقیم صفحه محصول را وارد کنید.</span>";
-});
-
-renderVariations();
