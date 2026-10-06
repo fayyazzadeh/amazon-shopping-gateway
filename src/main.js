@@ -38,6 +38,7 @@ app.innerHTML = `
           <button type="submit">بررسی محصول</button>
         </div>
         <p class="hint">فعلاً هیچ سفارش یا پرداختی انجام نمی‌شود.</p>
+        <p class="hint">لینک‌های کوتاه Amazon مانند amzn.to، amzn.eu و a.co نیز قابل بررسی هستند.</p>
         <div id="result" class="result" hidden></div>
       </form>
     </section>
@@ -89,13 +90,15 @@ document.querySelector("#product-form").addEventListener("submit", (event) => {
     host.endsWith(".amazon.com") ||
     host === "amazon.ae" ||
     host.endsWith(".amazon.ae") ||
-    host === "amzn.to";
+    host === "amzn.to" ||
+    host === "amzn.eu" ||
+    host === "a.co";
 
   result.hidden = false;
 
   if (!supported) {
     result.className = "result error";
-    result.textContent = "در نسخه فعلی لینک‌های Amazon.com، Amazon.ae و amzn.to پذیرفته می‌شوند.";
+    result.textContent = "در نسخه فعلی لینک‌های Amazon.com، Amazon.ae، amzn.to، amzn.eu و a.co پذیرفته می‌شوند.";
     return;
   }
 
