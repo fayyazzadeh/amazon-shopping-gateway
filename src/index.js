@@ -92,6 +92,30 @@ async function resolveShortUrl(inputUrl) {
   };
 }
 
+function withUtf8ContentType(response, pathname) {
+  const headers = new Headers(response.headers);
+  const lowerPath = pathname.toLowerCase();
+
+  if (lowerPath.endsWith(".html") || lowerPath === "/") {
+    headers.set("content-type", "text/html; charset=utf-8");
+  } else if (lowerPath.endsWith(".js") || lowerPath.endsWith(".mjs")) {
+    headers.set("content-type", "application/javascript; charset=utf-8");
+  } else if (lowerPath.endsWith(".css")) {
+    headers.set("content-type", "text/css; charset=utf-8");
+  }
+
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers
+  });
+}
+
+async function fetchAsset(request, env, pathname) {
+  const response = await env.ASSETS.fetch(request);
+  return withUtf8ContentType(response, pathname);
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -126,9 +150,10 @@ export default {
     }
 
     if (url.pathname === "/" || url.pathname === "/index.html") {
-      return env.ASSETS.fetch(new Request(new URL("/index.html", url), request));
+      const assetRequest = new Request(new URL("/index.html", url), request);
+      return fetchAsset(assetRequest, env, "/index.html");
     }
 
-    return env.ASSETS.fetch(request);
+    return fetchAsset(request, env, url.pathname);
   }
 };
