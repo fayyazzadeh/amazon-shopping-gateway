@@ -31,7 +31,7 @@ app.innerHTML = `
             name="amazon-url"
             type="url"
             inputmode="url"
-            placeholder="https://www.amazon.com/dp/..."
+            placeholder="https://www.amazon.ae/dp/... یا https://www.amazon.com/dp/..."
             autocomplete="off"
             required
           />
@@ -87,13 +87,15 @@ document.querySelector("#product-form").addEventListener("submit", (event) => {
   const supported =
     host === "amazon.com" ||
     host.endsWith(".amazon.com") ||
+    host === "amazon.ae" ||
+    host.endsWith(".amazon.ae") ||
     host === "amzn.to";
 
   result.hidden = false;
 
   if (!supported) {
     result.className = "result error";
-    result.textContent = "در نسخه فعلی فقط لینک‌های Amazon.com و amzn.to پذیرفته می‌شوند.";
+    result.textContent = "در نسخه فعلی لینک‌های Amazon.com، Amazon.ae و amzn.to پذیرفته می‌شوند.";
     return;
   }
 
