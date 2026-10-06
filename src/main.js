@@ -141,11 +141,36 @@ document.querySelector("#product-form").addEventListener("submit", (event) => {
 
   if (isShortAmazonLink(host)) {
     result.className = "result success";
-    result.innerHTML = `
-      <strong>لینک کوتاه شناسایی شد.</strong>
-      <span>این لینک معتبر است، اما ASIN داخل آدرس کوتاه قابل استخراج نیست.</span>
-      <span>در مرحله API، لینک به مقصد نهایی resolve می‌شود و ASIN استخراج خواهد شد.</span>
-    `;
+    result.innerHTML = "<strong>در حال شناسایی محصول...</strong><span>لینک کوتاه در حال Resolve شدن است.</span>";
+
+    try {
+      const response = await fetch(`/api/resolve-product?url=${encodeURIComponent(url.toString())}`);
+      const data = await response.json();
+
+      if (!response.ok || !data.ok) {
+        result.className = "result error";
+        result.innerHTML = `
+          <strong>محصول شناسایی نشد.</strong>
+          <span>${data.message || "Resolve لینک کوتاه ناموفق بود."}</span>
+        `;
+        return;
+      }
+
+      result.className = "result success";
+      result.innerHTML = `
+        <strong>محصول شناسایی شد.</strong>
+        <span>بازار: ${data.marketplace}</span>
+        <span>ASIN: <code>${data.asin}</code></span>
+        <span>لینک نهایی: <a href="${data.resolvedUrl}" target="_blank" rel="noreferrer">مشاهده محصول</a></span>
+        <span>مرحله بعد: دریافت اطلاعات و استعلام قیمت محصول.</span>
+      `;
+    } catch {
+      result.className = "result error";
+      result.innerHTML = `
+        <strong>ارتباط با API برقرار نشد.</strong>
+        <span>لطفاً چند لحظه بعد دوباره تلاش کنید.</span>
+      `;
+    }
     return;
   }
 
