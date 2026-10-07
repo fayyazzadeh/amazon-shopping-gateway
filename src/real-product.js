@@ -84,7 +84,15 @@ function renderVariations() {
 
 function updateSelection() {
   const variation = selectedVariation();
-  if (!variation) return;
+  if (!variation) {
+    const rootPrice = state.product?.price;
+    const price = rootPrice?.displayAmount || (rootPrice ? rootPrice.amount + " " + rootPrice.currency : "—");
+    document.querySelector("#selected-price").textContent = price;
+    document.querySelector("#line-product").textContent = price;
+    document.querySelector("#availability-text").textContent = state.product?.availability || "وضعیت موجودی توسط Amazon اعلام نشده است.";
+    renderGallery(state.product);
+    return;
+  }
 
   const price = variation.price?.displayAmount ||
     (variation.price ? variation.price.amount + " " + variation.price.currency : "—");
