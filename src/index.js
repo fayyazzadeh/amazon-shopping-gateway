@@ -1,3 +1,6 @@
+
+import { normalizeCreatorsProduct } from "./product-data.js";
+
 const SHORT_HOSTS = new Set(["amzn.to", "amzn.eu", "a.co"]);
 const AMAZON_HOST_PATTERN = /(^|\.)amazon\.(com|ae)$/i;
 const ASIN_PATTERNS = [
@@ -5,6 +8,8 @@ const ASIN_PATTERNS = [
   /\/gp\/product\/([A-Z0-9]{10})(?:[/?]|$)/i,
   /\/gp\/aw\/d\/([A-Z0-9]{10})(?:[/?]|$)/i
 ];
+
+let tokenCache = null;
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -27,10 +32,26 @@ function extractAsin(pathname) {
   return null;
 }
 
-function marketplace(host) {
-  if (host === "amazon.ae" || host.endsWith(".amazon.ae")) return "Amazon UAE";
-  if (host === "amazon.com" || host.endsWith(".amazon.com")) return "Amazon US";
-  return "Amazon";
+function marketplaceConfig(host, env) {
+  if (host === "amazon.ae" || host.endsWith(".amazon.ae")) {
+    return {
+      label: "Amazon UAE",
+      domain: "www.amazon.ae",
+      tokenEndpoint: "https://api.amazon.co.uk/auth/o2/token",
+      partnerTag: env?.AMAZON_PARTNER_TAG_AE || env?.AMAZON_PARTNER_TAG || null
+    };
+  }
+
+  if (host === "amazon.com" || host.endsWith(".amazon.com")) {
+    return {
+      label: "Amazon US",
+      domain: "www.amazon.com",
+      tokenEndpoint: "https://api.amazon.com/auth/o2/token",
+      partnerTag: env?.AMAZON_PARTNER_TAG_US || env?.AMAZON_PARTNER_TAG || null
+    };
+  }
+
+  return null;
 }
 
 function isAllowedShortUrl(url) {
@@ -87,8 +108,205 @@ async function resolveShortUrl(inputUrl) {
     ok: true,
     sourceUrl: source.toString(),
     resolvedUrl: finalUrl.toString(),
-    marketplace: marketplace(finalHost),
     asin
+  };
+}
+
+async function resolveAmazonInput(inputUrl) {
+  let source;
+  try {
+    source = new URL(inputUrl);
+  } catch {
+    return { error: "INVALID_URL", message: "لینک واردشده معتبر نیست." };
+  }
+
+  const host = source.hostname.toLowerCase();
+
+  if (SHORT_HOSTS.has(host)) {
+    const resolved = await resolveShortUrl(source.toString());
+    if (!resolved.ok) return resolved;
+    const finalUrl = new URL(resolved.resolvedUrl);
+    return { ...resolved, host: finalUrl.hostname.toLowerCase() };
+  }
+
+  if (!AMAZON_HOST_PATTERN.test(host)) {
+    return {
+      error: "UNSUPPORTED_URL",
+      message: "فقط لینک Amazon.com، Amazon.ae و لینک‌های کوتاه Amazon پشتیبانی می‌شوند."
+    };
+  }
+
+  const asin = extractAsin(source.pathname);
+  if (!asin) {
+    return {
+      error: "ASIN_NOT_FOUND",
+      message: "ASIN از لینک Amazon قابل استخراج نیست."
+    };
+  }
+
+  return {
+    ok: true,
+    sourceUrl: source.toString(),
+    resolvedUrl: source.toString(),
+    asin,
+    host
+  };
+}
+
+function getConfigForHost(host, env) {
+  const config = marketplaceConfig(host, env);
+  if (!config) {
+    return {
+      error: "UNSUPPORTED_MARKETPLACE",
+      message: "بازار Amazon این لینک پشتیبانی نمی‌شود."
+    };
+  }
+
+  if (!env.CREATORS_API_CLIENT_ID || !env.CREATORS_API_CLIENT_SECRET || !config.partnerTag) {
+    return {
+      error: "CREATORS_API_NOT_CONFIGURED",
+      message: "دسترسی Amazon Creators API هنوز روی Worker تنظیم نشده است."
+    };
+  }
+
+  return { ok: true, config };
+}
+
+async function getAccessToken(env, tokenEndpoint) {
+  const now = Date.now();
+  if (tokenCache && tokenCache.endpoint === tokenEndpoint && tokenCache.expiresAt > now + 60_000) {
+    return tokenCache.token;
+  }
+
+  const response = await fetch(tokenEndpoint, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      grant_type: "client_credentials",
+      client_id: env.CREATORS_API_CLIENT_ID,
+      client_secret: env.CREATORS_API_CLIENT_SECRET,
+      scope: "creatorsapi::default"
+    })
+  });
+
+  const data = await response.json().catch(() => null);
+  if (!response.ok || !data?.access_token) {
+    throw new Error("CREATORS_API_TOKEN_FAILED:" + response.status);
+  }
+
+  tokenCache = {
+    endpoint: tokenEndpoint,
+    token: data.access_token,
+    expiresAt: now + Math.max(60, Number(data.expires_in || 3600) - 60) * 1000
+  };
+
+  return data.access_token;
+}
+
+async function creatorsRequest(env, config, operation, payload) {
+  const token = await getAccessToken(env, config.tokenEndpoint);
+  const response = await fetch("https://creatorsapi.amazon/catalog/v1/" + operation, {
+    method: "POST",
+    headers: {
+      "authorization": "Bearer " + token,
+      "content-type": "application/json",
+      "x-marketplace": config.domain
+    },
+    body: JSON.stringify({
+      ...payload,
+      partnerTag: config.partnerTag,
+      marketplace: config.domain
+    })
+  });
+
+  const data = await response.json().catch(() => null);
+  if (!response.ok) {
+    const detail = data?.errors?.[0]?.message || ("HTTP " + response.status);
+    throw new Error("CREATORS_API_" + operation.toUpperCase() + "_FAILED:" + detail);
+  }
+
+  return data;
+}
+
+const PRODUCT_RESOURCES = [
+  "images.primary.large",
+  "itemInfo.title",
+  "itemInfo.byLineInfo",
+  "itemInfo.productInfo",
+  "offersV2.listings.price",
+  "offersV2.listings.availability",
+  "offersV2.listings.merchantInfo",
+  "parentASIN"
+];
+
+const VARIATION_RESOURCES = [
+  "images.primary.large",
+  "itemInfo.title",
+  "itemInfo.byLineInfo",
+  "itemInfo.productInfo",
+  "offersV2.listings.price",
+  "offersV2.listings.availability",
+  "offersV2.listings.merchantInfo",
+  "parentASIN",
+  "variationSummary.variationDimension"
+];
+
+async function fetchProduct(env, inputUrl) {
+  const resolved = await resolveAmazonInput(inputUrl);
+  if (!resolved.ok) return resolved;
+
+  const configResult = getConfigForHost(resolved.host, env);
+  if (!configResult.ok) return configResult;
+
+  const config = configResult.config;
+  const itemResponse = await creatorsRequest(env, config, "getItems", {
+    itemIds: [resolved.asin],
+    itemIdType: "ASIN",
+    resources: PRODUCT_RESOURCES
+  });
+
+  const firstItem = itemResponse?.itemsResult?.items?.[0];
+  if (!firstItem?.asin) {
+    return {
+      error: "PRODUCT_NOT_FOUND",
+      message: "Amazon اطلاعاتی برای این ASIN برنگرداند.",
+      asin: resolved.asin,
+      marketplace: config.label
+    };
+  }
+
+  const variationPages = [];
+  let page = 1;
+  let pageCount = 1;
+  let variationSummary = null;
+
+  do {
+    const response = await creatorsRequest(env, config, "getVariations", {
+      asin: resolved.asin,
+      condition: "New",
+      variationPage: page,
+      resources: VARIATION_RESOURCES
+    });
+
+    const result = response?.variationsResult;
+    variationPages.push(...(result?.items || []));
+    variationSummary = result?.variationSummary || variationSummary;
+    pageCount = Number(variationSummary?.pageCount || 1);
+    page += 1;
+  } while (page <= pageCount && page <= 100);
+
+  const product = normalizeCreatorsProduct(itemResponse, {
+    variationItems: variationPages,
+    variationSummary
+  });
+
+  return {
+    ok: true,
+    sourceUrl: resolved.sourceUrl,
+    resolvedUrl: resolved.resolvedUrl,
+    marketplace: config.label,
+    marketplaceDomain: config.domain,
+    ...product
   };
 }
 
@@ -145,8 +363,31 @@ export default {
         return json({ error: "MISSING_URL", message: "پارامتر url الزامی است." }, 400);
       }
 
-      const result = await resolveShortUrl(inputUrl);
+      const result = await resolveAmazonInput(inputUrl);
       return json(result, result.ok ? 200 : 400);
+    }
+
+    if (url.pathname === "/api/product") {
+      if (request.method !== "GET") {
+        return json({ error: "METHOD_NOT_ALLOWED", message: "فقط GET پشتیبانی می‌شود." }, 405);
+      }
+
+      const inputUrl = url.searchParams.get("url");
+      if (!inputUrl) {
+        return json({ error: "MISSING_URL", message: "پارامتر url الزامی است." }, 400);
+      }
+
+      try {
+        const result = await fetchProduct(env, inputUrl);
+        const status = result.ok ? 200 : result.error === "CREATORS_API_NOT_CONFIGURED" ? 503 : 400;
+        return json(result, status);
+      } catch (error) {
+        return json({
+          error: "PRODUCT_LOOKUP_FAILED",
+          message: "دریافت اطلاعات واقعی محصول از Amazon ناموفق بود.",
+          detail: error instanceof Error ? error.message : String(error)
+        }, 502);
+      }
     }
 
     if (url.pathname === "/" || url.pathname === "/index.html") {
