@@ -91,7 +91,8 @@ function updateSelection() {
 
   document.querySelector("#selected-price").textContent = price;
   document.querySelector("#line-product").textContent = price;
-  document.querySelector("#selected-asin").textContent = variation.asin || "—";
+  const selectedAsin = document.querySelector("#selected-asin");
+  if (selectedAsin) selectedAsin.textContent = variation.asin || "—";
   document.querySelector("#availability-text").textContent =
     variation.availability || "وضعیت موجودی توسط Amazon اعلام نشده است.";
   renderGallery(variation);
