@@ -63,15 +63,16 @@ async function fetchNextProduct(env, inputUrl) {
   }
 
   const endpoint = new URL(env.RAPIDAPI_NEXT_ENDPOINT);
-  const queryParam = env.RAPIDAPI_NEXT_QUERY_PARAM || "url";
-  endpoint.searchParams.set(queryParam, source.toString());
 
   const response = await fetch(endpoint.toString(), {
+    method: "POST",
     headers: {
       "X-RapidAPI-Key": env.RAPIDAPI_KEY,
       "X-RapidAPI-Host": env.RAPIDAPI_NEXT_HOST,
-      "accept": "application/json"
-    }
+      "Content-Type": "application/json",
+      "Accept": "application/json"
+    },
+    body: JSON.stringify({ url: source.toString() })
   });
 
   const payload = await response.json().catch(() => null);
