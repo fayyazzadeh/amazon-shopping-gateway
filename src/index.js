@@ -81,6 +81,11 @@ async function fetchNextProduct(env, inputUrl) {
   }
 
   const product = normalizeNextProduct(payload, source.toString());
+  product.pricing = buildCustomerPricing(product.price, env);
+  product.variations = product.variations.map((variation) => ({
+    ...variation,
+    pricing: buildCustomerPricing(variation.price, env)
+  }));
   if (!product.title && !product.price && !product.variations.length) {
     return {
       error: "NEXT_PRODUCT_NOT_FOUND",
