@@ -7,7 +7,7 @@ function firstProduct(payload) {
 function absoluteNextImage(path) {
   if (!path) return null;
   const value = String(path);
-  if (/^https?:\\/\\//i.test(value)) return value;
+  if (value.startsWith("http://") || value.startsWith("https://")) return value;
   return value.startsWith("/") ? "https://xcdn.next.co.uk" + value : value;
 }
 
