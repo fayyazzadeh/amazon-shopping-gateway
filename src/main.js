@@ -19,12 +19,34 @@ const demoProduct = {
 
 let currentProduct = null;
 
+function sourcePrice(product) {
+  const p = product?.price;
+  return p?.displayAmount || (p ? p.amount + " " + p.currency : "—");
+}
+
+function customerPrice(product) {
+  const p = product?.pricing;
+  if (!p?.configured) return "پس از تنظیم نرخ";
+  return new Intl.NumberFormat("fa-IR").format(p.customerAmount) + " تومان";
+}
+
+function applyGatewayProduct(data) {
+  const product = data;
+  document.querySelector("#product-origin").textContent = data.marketplace || "—";
+  document.querySelector("#selected-price").textContent = sourcePrice(product);
+  document.querySelector("#line-product").textContent = sourcePrice(product);
+  const total = document.querySelector(".price-total strong");
+  if (total) total.textContent = customerPrice(product);
+  const cta = document.querySelector(".primary-cta");
+  if (cta) cta.textContent = "ادامه و استعلام قیمت ←";
+}
+
 app.innerHTML = `
   <main class="page">
     <header class="topbar">
       <a class="brand" href="#" aria-label="صفحه اصلی">
         <span class="brand-mark">A</span>
-        <span class="brand-copy"><strong>Amazon Shopping Gateway</strong><small>خرید از آمازون، ساده‌تر</small></span>
+        <span class="brand-copy"><strong>Amazon Shopping Gateway</strong><small>خرید از Amazon و Next، ساده‌تر</small></span>
       </a>
       <nav class="nav" aria-label="ناوبری اصلی">
         <a href="#how">نحوه خرید</a>
@@ -35,18 +57,18 @@ app.innerHTML = `
 
     <section class="hero">
       <div class="hero-copy">
-        <span class="eyebrow">خرید از Amazon.com و Amazon.ae</span>
+        <span class="eyebrow">خرید از Amazon.com، Amazon.ae و Next.co.uk</span>
         <h1>محصولت را از آمازون پیدا کن، <em>ما بقیه مسیر را ساده می‌کنیم.</em></h1>
         <p>لینک محصول را وارد کن تا اطلاعات کالا، مدل‌ها، سایزها و قیمت تقریبی آن برای بررسی سفارش آماده شود.</p>
       </div>
 
       <form id="product-form" class="search-card">
-        <label for="amazon-url">لینک محصول آمازون</label>
+        <label for="amazon-url">لینک محصول Amazon / Next یا Next</label>
         <div class="input-row">
-          <input id="amazon-url" name="amazon-url" type="url" inputmode="url" placeholder="https://www.amazon.com/dp/..." autocomplete="off" required />
+          <input id="amazon-url" name="amazon-url" type="url" inputmode="url" placeholder="https://www.amazon.com/dp/... یا https://www.next.co.uk/style/..." autocomplete="off" required />
           <button type="submit"><span>بررسی محصول</span><b>←</b></button>
         </div>
-        <div class="supported"><span>پشتیبانی از</span><b>Amazon.com</b><b>Amazon.ae</b><b>amzn.to</b><b>a.co</b></div>
+        <div class="supported"><span>پشتیبانی از</span><b>Amazon.com</b><b>Amazon.ae</b><b>Next.co.uk</b><b>amzn.to</b><b>a.co</b></div>
         <div id="result" class="result" hidden></div>
       </form>
     </section>
@@ -81,7 +103,7 @@ app.innerHTML = `
           <div class="detail-grid">
             <div><span>برند</span><strong id="product-brand">—</strong></div>
             <div><span>نوع</span><strong>پوشاک</strong></div>
-            <div><span>مبدأ</span><strong>Amazon</strong></div>
+            <div><span>مبدأ</span><strong id="product-origin">—</strong></div>
           </div>
         </div>
 
