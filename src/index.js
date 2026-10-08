@@ -1,4 +1,3 @@
-
 import { normalizeCreatorsProduct } from "./product-data.js";
 import { normalizeNextProduct } from "./next-product.js";
 
@@ -34,12 +33,110 @@ function extractAsin(pathname) {
 }
 
 const NEXT_HOST_PATTERN = /(^|\.)next\.co\.uk$/i;
+const NEXT_DIAGNOSTIC_URL = "https://www.next.co.uk/style/su624250/f30877#f30877";
 
 function isNextUrl(inputUrl) {
   try {
     return NEXT_HOST_PATTERN.test(new URL(inputUrl).hostname.toLowerCase());
   } catch {
     return false;
+  }
+}
+
+function getNextConfigStatus(env) {
+  let endpointValid = false;
+  let endpointHost = null;
+
+  try {
+    const endpoint = new URL(env?.RAPIDAPI_NEXT_ENDPOINT || "");
+    endpointValid = endpoint.protocol === "https:" && Boolean(endpoint.hostname);
+    endpointHost = endpoint.hostname || null;
+  } catch {
+    // Keep diagnostics safe and non-throwing when the endpoint is missing/invalid.
+  }
+
+  return {
+    rapidApiKeyConfigured: Boolean(env?.RAPIDAPI_KEY),
+    rapidApiNextHostConfigured: Boolean(env?.RAPIDAPI_NEXT_HOST),
+    rapidApiNextEndpointConfigured: Boolean(env?.RAPIDAPI_NEXT_ENDPOINT),
+    rapidApiNextEndpointValid: endpointValid,
+    rapidApiNextHost: env?.RAPIDAPI_NEXT_HOST || null,
+    rapidApiNextEndpointHost: endpointHost
+  };
+}
+
+async function getNextDiagnostics(env, liveCheck) {
+  const config = getNextConfigStatus(env);
+
+  if (!config.rapidApiKeyConfigured || !config.rapidApiNextHostConfigured || !config.rapidApiNextEndpointConfigured) {
+    return {
+      ok: false,
+      configured: false,
+      liveChecked: false,
+      ...config,
+      message: "اتصال RapidAPI برای Next هنوز روی Worker به‌طور کامل تنظیم نشده است."
+    };
+  }
+
+  if (!config.rapidApiNextEndpointValid) {
+    return {
+      ok: false,
+      configured: false,
+      liveChecked: false,
+      ...config,
+      message: "RAPIDAPI_NEXT_ENDPOINT معتبر نیست."
+    };
+  }
+
+  if (!liveCheck) {
+    return {
+      ok: true,
+      configured: true,
+      liveChecked: false,
+      ...config,
+      message: "سه تنظیم RapidAPI برای Next روی Worker قابل مشاهده هستند؛ کلید نمایش داده نمی‌شود."
+    };
+  }
+
+  try {
+    const result = await fetchNextProduct(env, NEXT_DIAGNOSTIC_URL);
+    if (!result.ok) {
+      return {
+        ok: false,
+        configured: true,
+        liveChecked: true,
+        ...config,
+        rapidApiError: result.error || "NEXT_PRODUCT_LOOKUP_FAILED",
+        message: result.message || "تست زنده Next ناموفق بود."
+      };
+    }
+
+    return {
+      ok: true,
+      configured: true,
+      liveChecked: true,
+      ...config,
+      rapidApiStatus: 200,
+      testProduct: {
+        title: result.title || null,
+        styleNumber: result.styleNumber || null,
+        itemNumber: result.itemNumber || null,
+        price: result.price || null,
+        variationCount: Array.isArray(result.variations) ? result.variations.length : 0
+      },
+      message: "اتصال زنده Worker به RapidAPI و Next با موفقیت انجام شد."
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      configured: true,
+      liveChecked: true,
+      ...config,
+      rapidApiStatus: null,
+      rapidApiError: "LIVE_CHECK_FAILED",
+      detail: error instanceof Error ? error.message : String(error),
+      message: "تنظیمات وجود دارند، اما تست زنده RapidAPI/Next ناموفق بود."
+    };
   }
 }
 
@@ -306,7 +403,7 @@ async function getAccessToken(env, tokenEndpoint) {
     expiresAt: now + Math.max(60, Number(data.expires_in || 3600) - 60) * 1000
   };
 
-  return data.access_token;
+  return tokenCache.token;
 }
 
 async function creatorsRequest(env, config, operation, payload) {
@@ -458,6 +555,16 @@ export default {
 
     if (url.pathname === "/api/health") {
       return json({ ok: true, service: "amazon-shopping-gateway" });
+    }
+
+    if (url.pathname === "/api/diagnostics/next") {
+      if (request.method !== "GET") {
+        return json({ error: "METHOD_NOT_ALLOWED", message: "فقط GET پشتیبانی می‌شود." }, 405);
+      }
+
+      const liveCheck = url.searchParams.get("live") === "1";
+      const result = await getNextDiagnostics(env, liveCheck);
+      return json(result, result.ok ? 200 : 503);
     }
 
     if (url.pathname === "/api/resolve-product") {
