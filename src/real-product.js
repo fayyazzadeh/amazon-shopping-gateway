@@ -43,7 +43,7 @@ function renderGallery(variation) {
     visual.innerHTML = '<img class="amazon-product-image" src="' + escapeHtml(image) +
       '" alt="' + escapeHtml(state.product.title || "Amazon product") + '" />';
   } else {
-    visual.innerHTML = '<div class="image-placeholder">تصویر محصول از Amazon برنگردانده شد</div>';
+    visual.innerHTML = '<div class="image-placeholder">تصویر محصول از منبع فروشگاه برنگردانده شد</div>';
   }
 }
 
@@ -89,7 +89,7 @@ function updateSelection() {
     const price = rootPrice?.displayAmount || (rootPrice ? rootPrice.amount + " " + rootPrice.currency : "—");
     document.querySelector("#selected-price").textContent = price;
     document.querySelector("#line-product").textContent = price;
-    document.querySelector("#availability-text").textContent = state.product?.availability || "وضعیت موجودی توسط Amazon اعلام نشده است.";
+    document.querySelector("#availability-text").textContent = state.product?.availability || "وضعیت موجودی توسط فروشگاه اعلام نکرده است.";
     renderGallery(state.product);
     return;
   }
@@ -102,7 +102,7 @@ function updateSelection() {
   const selectedAsin = document.querySelector("#selected-asin");
   if (selectedAsin) selectedAsin.textContent = variation.asin || "—";
   document.querySelector("#availability-text").textContent =
-    variation.availability || "وضعیت موجودی توسط Amazon اعلام نشده است.";
+    variation.availability || "وضعیت موجودی توسط فروشگاه اعلام نکرده است.";
   renderGallery(variation);
 }
 
@@ -114,8 +114,8 @@ function renderProduct(product) {
     product.variations?.[0];
   if (initial) state.selectedAttributes = { ...initial.attributes };
 
-  document.querySelector("#product-title").textContent = product.title || "محصول Amazon";
-  document.querySelector("#product-store").textContent = "Amazon Store · " + product.marketplace;
+  document.querySelector("#product-title").textContent = product.title || "محصول Amazon / Next";
+  document.querySelector("#product-store").textContent = "Store · " + product.marketplace;
   document.querySelector("#product-brand").textContent = product.brand || "—";
   document.querySelector("#product-rating").textContent = product.rating || "—";
   document.querySelector("#product-reviews").textContent =
@@ -124,7 +124,7 @@ function renderProduct(product) {
     "Parent " + (product.parentAsin || "—") + " · " + (product.variations?.length || 0) + " Child ASIN";
   document.querySelector("#product-badge").textContent = "LIVE";
   document.querySelector("#variation-status").textContent =
-    (product.variations?.length || 0) + " Child ASIN از Amazon دریافت شد.";
+    (product.variations?.length || 0) + " Child ASIN از منبع فروشگاه دریافت شد.";
   document.querySelector("#product-parent-asin").textContent = product.parentAsin || "—";
   document.querySelector("#product-variation-count").textContent =
     String(product.variations?.length || 0);
