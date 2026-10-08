@@ -1,108 +1,54 @@
-function firstArrayValue(value) {
-  return Array.isArray(value) ? value : [];
-}
-
-function findFirst(obj, keys) {
-  if (!obj || typeof obj !== "object") return null;
-  for (const key of keys) {
-    if (obj[key] != null) return obj[key];
-  }
-  for (const value of Object.values(obj)) {
-    if (value && typeof value === "object") {
-      const found = findFirst(value, keys);
-      if (found != null) return found;
-    }
-  }
+function firstProduct(payload) {
+  if (Array.isArray(payload?.data)) return payload.data[0] ?? null;
+  if (payload?.data && typeof payload.data === "object") return payload.data;
   return null;
 }
 
-function normalizeMoney(value) {
-  if (typeof value === "number") return { amount: value, currency: "GBP", displayAmount: null };
-  if (typeof value === "string") {
-    const match = value.replace(/,/g, "").match(/([£$€])?\s*(\d+(?:\.\d{1,2})?)/);
-    if (!match) return null;
-    const currency = match[1] === "£" ? "GBP" : match[1] === "$" ? "USD" : match[1] === "€" ? "EUR" : "GBP";
-    return { amount: Number(match[2]), currency, displayAmount: value };
-  }
-  if (!value || typeof value !== "object") return null;
-  const amount = Number(value.amount ?? value.value ?? value.price ?? value.currentPrice);
-  if (!Number.isFinite(amount)) return null;
-  return {
-    amount,
-    currency: value.currency ?? value.currencyCode ?? "GBP",
-    displayAmount: value.displayAmount ?? value.formatted ?? value.label ?? null
-  };
+function absoluteNextImage(path) {
+  if (!path) return null;
+  const value = String(path);
+  if (/^https?:\\/\\//i.test(value)) return value;
+  return value.startsWith("/") ? "https://xcdn.next.co.uk" + value : value;
 }
 
-function normalizeVariant(raw, index) {
-  const attributes = {};
-  const colour = findFirst(raw, ["colour", "color", "colourName", "colorName"]);
-  const size = findFirst(raw, ["size", "sizeName"]);
-  if (colour != null) attributes.Color = String(colour);
-  if (size != null) attributes.Size = String(size);
+function normalizeMoney(amount, displayAmount = null, currency = "GBP") {
+  const numeric = Number(amount);
+  if (!Number.isFinite(numeric)) return null;
+  return { amount: numeric, currency, displayAmount: displayAmount ?? (currency === "GBP" ? "£" + numeric : String(numeric)) };
+}
 
-  const asin = findFirst(raw, ["asin", "sku", "variant_id", "variantId", "item_id", "itemId", "id"]);
-  const title = findFirst(raw, ["title", "name", "productName"]);
-  const image = findFirst(raw, ["image", "imageUrl", "image_url", "thumbnail"]);
-  const price = normalizeMoney(findFirst(raw, ["price", "currentPrice", "sellingPrice", "salePrice", "wasPrice"]));
-  const availability = findFirst(raw, ["availability", "stock", "stockStatus", "inStock"]);
-
+function normalizeSizeOption(option, product, index) {
+  const price = normalizeMoney(option?.price_unformatted ?? product?.price_data?.price?.min_price, option?.price ?? product?.price, product?.currency_code ?? "GBP");
+  const id = `${product?.item_number ?? "next-item"}-${option?.value ?? index + 1}`;
   return {
-    asin: asin != null ? String(asin) : `next-${index + 1}`,
-    title: title != null ? String(title) : null,
-    attributes,
-    image: image != null ? String(image) : null,
-    price,
-    availability: typeof availability === "boolean" ? (availability ? "In stock" : "Out of stock") : (availability != null ? String(availability) : null),
-    merchant: "Next",
-    url: findFirst(raw, ["url", "productUrl", "product_url", "href"]) ?? null
+    asin: id, variantId: id, itemNumber: product?.item_number ?? null, title: product?.title ?? null,
+    attributes: { Color: product?.colour ?? null, Fit: product?.fit ?? null, Size: option?.name ?? option?.value ?? null },
+    image: absoluteNextImage(product?.item_media?.find?.((media) => media?.is_hero_image)?.image_url ?? product?.item_media?.[0]?.image_url),
+    price, availability: option?.stock_status ?? null, merchant: "Next", url: product?.url ?? null
   };
 }
 
 export function normalizeNextProduct(payload, sourceUrl) {
-  const root = payload?.data ?? payload?.product ?? payload?.result ?? payload;
-  const title = findFirst(root, ["title", "name", "productName"]);
-  const brand = findFirst(root, ["brand", "brandName"]);
-  const image = findFirst(root, ["image", "imageUrl", "image_url", "thumbnail"]);
-  const price = normalizeMoney(findFirst(root, ["price", "currentPrice", "sellingPrice", "salePrice", "wasPrice"]));
-  const sku = findFirst(root, ["sku", "item_id", "itemId", "productId", "product_id", "id"]);
-  const availability = findFirst(root, ["availability", "stock", "stockStatus", "inStock"]);
-  const canonicalUrl = findFirst(root, ["url", "productUrl", "product_url", "canonicalUrl"]) ?? sourceUrl;
-
-  let rawVariants = findFirst(root, ["variants", "variations", "products", "items"]);
-  if (!Array.isArray(rawVariants)) rawVariants = [];
-
-  const variations = rawVariants.map(normalizeVariant);
-  if (!variations.length && sku != null) {
-    variations.push(normalizeVariant({
-      asin: sku,
-      title,
-      image,
-      price,
-      availability,
-      url: canonicalUrl
-    }, 0));
-  }
-
+  const product = firstProduct(payload);
+  if (!product) return { asin: null, parentAsin: null, identifierType: "next_item_number", itemNumber: null, styleNumber: null, productCode: null, title: "محصول Next", brand: "Next", image: null, images: [], price: null, wasPrice: null, salePrice: null, availability: null, merchant: "Next", url: sourceUrl, dimensions: [], variations: [] };
+  const currency = product.currency_code ?? "GBP";
+  const basePrice = product?.price_data?.price?.min_price;
+  const salePrice = product?.price_data?.sale_price;
+  const wasPrice = product?.price_data?.was_price ?? product?.was_price;
+  const effectivePrice = salePrice != null ? salePrice : basePrice;
+  const price = normalizeMoney(effectivePrice, product.price, currency);
+  const media = Array.isArray(product.item_media) ? product.item_media : [];
+  const images = media.map((item) => absoluteNextImage(item?.image_url)).filter(Boolean);
+  const sizeOptions = Array.isArray(product?.options?.options) ? product.options.options : [];
+  const variations = sizeOptions.map((option, index) => normalizeSizeOption(option, product, index));
+  const colours = Array.isArray(product?.fits_and_colourways?.colourways?.colourways) ? product.fits_and_colourways.colourways.colourways : [];
+  const fits = Array.isArray(product?.fits_and_colourways?.fits) ? product.fits_and_colourways.fits : [];
+  const colourValues = [...new Set([product.colour, ...colours.map((item) => item?.display_text)].filter(Boolean))];
+  const fitValues = [...new Set([product.fit, ...fits.map((item) => item?.display_text)].filter(Boolean))];
+  const sizeValues = [...new Set(sizeOptions.map((option) => option?.name ?? option?.value).filter(Boolean))];
   const dimensions = [];
-  const colors = [...new Set(variations.map(v => v.attributes.Color).filter(Boolean))];
-  const sizes = [...new Set(variations.map(v => v.attributes.Size).filter(Boolean))];
-  if (colors.length) dimensions.push({ name: "Color", displayName: "رنگ", values: colors });
-  if (sizes.length) dimensions.push({ name: "Size", displayName: "سایز", values: sizes });
-
-  return {
-    asin: sku != null ? String(sku) : null,
-    parentAsin: sku != null ? String(sku) : null,
-    title: title != null ? String(title) : "محصول Next",
-    brand: brand != null ? String(brand) : "Next",
-    image: image != null ? String(image) : null,
-    rating: findFirst(root, ["rating", "averageRating"]) ?? null,
-    reviewCount: findFirst(root, ["reviewCount", "reviews", "numberOfReviews"]) ?? null,
-    price,
-    availability: typeof availability === "boolean" ? (availability ? "In stock" : "Out of stock") : (availability != null ? String(availability) : null),
-    merchant: "Next",
-    url: canonicalUrl,
-    dimensions,
-    variations
-  };
+  if (colourValues.length) dimensions.push({ name: "Color", displayName: "رنگ", values: colourValues });
+  if (fitValues.length) dimensions.push({ name: "Fit", displayName: "فیت", values: fitValues });
+  if (sizeValues.length) dimensions.push({ name: "Size", displayName: "سایز", values: sizeValues });
+  return { asin: product.item_number ?? null, parentAsin: product.style_number ?? null, identifierType: "next_item_number", itemNumber: product.item_number ?? null, styleNumber: product.style_number ?? null, productCode: product.product_code ?? null, title: product.title ?? "محصول Next", brand: product.brand ?? "Next", image: images[0] ?? null, images, description: product.item_description ?? null, category: product.category ?? null, collection: product.collection ?? null, department: product.department ?? null, gender: product.gender ?? null, colour: product.colour ?? null, fit: product.fit ?? null, rating: null, reviewCount: null, price, wasPrice: normalizeMoney(wasPrice, wasPrice != null ? "£" + wasPrice : null, currency), salePrice: normalizeMoney(salePrice, salePrice != null ? "£" + salePrice : null, currency), availability: sizeOptions.some((option) => option?.stock_status === "InStock") ? "In stock" : "Out of stock", merchant: "Next", url: sourceUrl, dimensions, variations, availableForCollectInStore: Boolean(product.available_for_collect_in_store), offerType: product.offer_type ?? null, fits, colours };
 }
