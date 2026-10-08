@@ -82,6 +82,12 @@ function renderVariations() {
   });
 }
 
+function formatCustomerPrice(product) {
+  const pricing = product?.pricing;
+  if (!pricing?.configured) return "پس از تنظیم نرخ";
+  return new Intl.NumberFormat("fa-IR").format(pricing.customerAmount) + " تومان";
+}
+
 function updateSelection() {
   const variation = selectedVariation();
   if (!variation) {
@@ -99,6 +105,8 @@ function updateSelection() {
 
   document.querySelector("#selected-price").textContent = price;
   document.querySelector("#line-product").textContent = price;
+  const total = document.querySelector(".price-total strong");
+  if (total) total.textContent = formatCustomerPrice(state.product);
   const selectedAsin = document.querySelector("#selected-asin");
   if (selectedAsin) selectedAsin.textContent = variation.asin || "—";
   document.querySelector("#availability-text").textContent =
@@ -145,7 +153,9 @@ async function loadProduct(inputUrl) {
   if (!response.ok || !data.ok) {
     const hint = data.error === "CREATORS_API_NOT_CONFIGURED"
       ? "<span>ابتدا دسترسی Amazon Creators API روی Worker تنظیم شود.</span>"
-      : "";
+      : data.error === "RAPIDAPI_NEXT_NOT_CONFIGURED"
+        ? "<span>ابتدا RAPIDAPI_KEY، RAPIDAPI_NEXT_HOST و RAPIDAPI_NEXT_ENDPOINT روی Worker تنظیم شوند.</span>"
+        : "";
     setResult("error", "<strong>" + escapeHtml(data.message || "دریافت اطلاعات محصول ناموفق بود.") + "</strong>" + hint);
     return;
   }
