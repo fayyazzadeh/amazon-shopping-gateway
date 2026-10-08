@@ -33,7 +33,7 @@ function extractAsin(pathname) {
   return null;
 }
 
-const NEXT_HOST_PATTERN = /(^|\\.)next\\.co\\.uk$/i;
+const NEXT_HOST_PATTERN = /(^|\.)next\.co\.uk$/i;
 
 function isNextUrl(inputUrl) {
   try {
