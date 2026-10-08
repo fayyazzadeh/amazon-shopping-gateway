@@ -1,5 +1,6 @@
 
 import { normalizeCreatorsProduct } from "./product-data.js";
+import { normalizeNextProduct } from "./next-product.js";
 
 const SHORT_HOSTS = new Set(["amzn.to", "amzn.eu", "a.co"]);
 const AMAZON_HOST_PATTERN = /(^|\.)amazon\.(com|ae)$/i;
@@ -30,6 +31,105 @@ function extractAsin(pathname) {
     if (match) return match[1].toUpperCase();
   }
   return null;
+}
+
+const NEXT_HOST_PATTERN = /(^|\\.)next\\.co\\.uk$/i;
+
+function isNextUrl(inputUrl) {
+  try {
+    return NEXT_HOST_PATTERN.test(new URL(inputUrl).hostname.toLowerCase());
+  } catch {
+    return false;
+  }
+}
+
+async function fetchNextProduct(env, inputUrl) {
+  if (!env.RAPIDAPI_KEY || !env.RAPIDAPI_NEXT_HOST || !env.RAPIDAPI_NEXT_ENDPOINT) {
+    return {
+      error: "RAPIDAPI_NEXT_NOT_CONFIGURED",
+      message: "اتصال RapidAPI برای Next هنوز روی Worker تنظیم نشده است."
+    };
+  }
+
+  let source;
+  try {
+    source = new URL(inputUrl);
+  } catch {
+    return { error: "INVALID_URL", message: "لینک واردشده معتبر نیست." };
+  }
+
+  if (!NEXT_HOST_PATTERN.test(source.hostname.toLowerCase())) {
+    return { error: "UNSUPPORTED_URL", message: "فقط لینک next.co.uk پشتیبانی می‌شود." };
+  }
+
+  const endpoint = new URL(env.RAPIDAPI_NEXT_ENDPOINT);
+  const queryParam = env.RAPIDAPI_NEXT_QUERY_PARAM || "url";
+  endpoint.searchParams.set(queryParam, source.toString());
+
+  const response = await fetch(endpoint.toString(), {
+    headers: {
+      "X-RapidAPI-Key": env.RAPIDAPI_KEY,
+      "X-RapidAPI-Host": env.RAPIDAPI_NEXT_HOST,
+      "accept": "application/json"
+    }
+  });
+
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    const detail = payload?.message || payload?.error || ("HTTP " + response.status);
+    throw new Error("RAPIDAPI_NEXT_FAILED:" + detail);
+  }
+
+  const product = normalizeNextProduct(payload, source.toString());
+  if (!product.title && !product.price && !product.variations.length) {
+    return {
+      error: "NEXT_PRODUCT_NOT_FOUND",
+      message: "RapidAPI اطلاعات قابل استفاده‌ای برای این محصول Next برنگرداند."
+    };
+  }
+
+  return {
+    ok: true,
+    sourceUrl: source.toString(),
+    resolvedUrl: product.url || source.toString(),
+    marketplace: "Next UK",
+    marketplaceDomain: "next.co.uk",
+    ...product,
+    pricing: buildCustomerPricing(product.price, env)
+  };
+}
+
+function buildCustomerPricing(price, env) {
+  if (!price || !Number.isFinite(Number(price.amount))) return null;
+
+  const amount = Number(price.amount);
+  const currency = price.currency || "GBP";
+  const rateKey = currency === "GBP" ? "GBP_TO_IRR" : currency === "USD" ? "USD_TO_IRR" : null;
+  const rate = rateKey ? Number(env?.[rateKey]) : null;
+  const marginPercent = Number(env?.CUSTOMER_MARGIN_PERCENT || 0);
+  const fixedFee = Number(env?.FIXED_FEE_IRR || 0);
+
+  if (!Number.isFinite(rate) || rate <= 0) {
+    return {
+      sourceAmount: amount,
+      sourceCurrency: currency,
+      customerAmount: null,
+      customerCurrency: "IRR",
+      configured: false
+    };
+  }
+
+  const customerAmount = Math.ceil((amount * rate * (1 + marginPercent / 100) + fixedFee) / 1000) * 1000;
+  return {
+    sourceAmount: amount,
+    sourceCurrency: currency,
+    exchangeRate: rate,
+    marginPercent,
+    fixedFee,
+    customerAmount,
+    customerCurrency: "IRR",
+    configured: true
+  };
 }
 
 function marketplaceConfig(host, env) {
@@ -252,6 +352,7 @@ const VARIATION_RESOURCES = [
 ];
 
 async function fetchProduct(env, inputUrl) {
+  if (isNextUrl(inputUrl)) return fetchNextProduct(env, inputUrl);
   const resolved = await resolveAmazonInput(inputUrl);
   if (!resolved.ok) return resolved;
 
@@ -379,12 +480,12 @@ export default {
 
       try {
         const result = await fetchProduct(env, inputUrl);
-        const status = result.ok ? 200 : result.error === "CREATORS_API_NOT_CONFIGURED" ? 503 : 400;
+        const status = result.ok ? 200 : ["CREATORS_API_NOT_CONFIGURED", "RAPIDAPI_NEXT_NOT_CONFIGURED"].includes(result.error) ? 503 : 400;
         return json(result, status);
       } catch (error) {
         return json({
           error: "PRODUCT_LOOKUP_FAILED",
-          message: "دریافت اطلاعات واقعی محصول از Amazon ناموفق بود.",
+          message: "دریافت اطلاعات واقعی محصول ناموفق بود.",
           detail: error instanceof Error ? error.message : String(error)
         }, 502);
       }
