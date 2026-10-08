@@ -78,7 +78,7 @@ function renderVariations() {
       options.appendChild(button);
     });
 
-    colorRoot.appendChild(wrapper);
+    (dimension.name === "Color" ? colorRoot : sizeRoot).appendChild(wrapper);
   });
 }
 
@@ -106,7 +106,7 @@ function updateSelection() {
   document.querySelector("#selected-price").textContent = price;
   document.querySelector("#line-product").textContent = price;
   const total = document.querySelector(".price-total strong");
-  if (total) total.textContent = formatCustomerPrice(state.product);
+  if (total) total.textContent = formatCustomerPrice(variation);
   const selectedAsin = document.querySelector("#selected-asin");
   if (selectedAsin) selectedAsin.textContent = variation.asin || "—";
   document.querySelector("#availability-text").textContent =
@@ -128,11 +128,13 @@ function renderProduct(product) {
   document.querySelector("#product-rating").textContent = product.rating || "—";
   document.querySelector("#product-reviews").textContent =
     product.reviewCount ? "(" + product.reviewCount + " نظر)" : "امتیاز در دسترس نیست";
+  const identifierLabel = product.marketplace === "Next UK" ? "Item" : "Child ASIN";
   document.querySelector("#product-source-label").textContent =
-    "Parent " + (product.parentAsin || "—") + " · " + (product.variations?.length || 0) + " Child ASIN";
+    (product.marketplace === "Next UK" ? "Style " : "Parent ") +
+    (product.parentAsin || "—") + " · " + (product.variations?.length || 0) + " " + identifierLabel;
   document.querySelector("#product-badge").textContent = "LIVE";
   document.querySelector("#variation-status").textContent =
-    (product.variations?.length || 0) + " Child ASIN از منبع فروشگاه دریافت شد.";
+    (product.variations?.length || 0) + " " + identifierLabel + " از منبع فروشگاه دریافت شد.";
   document.querySelector("#product-parent-asin").textContent = product.parentAsin || "—";
   document.querySelector("#product-variation-count").textContent =
     String(product.variations?.length || 0);
@@ -164,8 +166,8 @@ async function loadProduct(inputUrl) {
     "success",
     "<strong>محصول واقعی شناسایی شد</strong>" +
     "<span>بازار: " + escapeHtml(data.marketplace) + "</span>" +
-    "<span>Parent ASIN: <code>" + escapeHtml(data.parentAsin || "—") + "</code></span>" +
-    "<span>Child ASIN: <code>" + escapeHtml(String(data.variations?.length || 0)) + " مورد</code></span>"
+    "<span>" + escapeHtml(data.marketplace === "Next UK" ? "Style Number" : "Parent ASIN") + ": <code>" + escapeHtml(data.parentAsin || "—") + "</code></span>" +
+    "<span>" + escapeHtml(data.marketplace === "Next UK" ? "Size Options" : "Child ASIN") + ": <code>" + escapeHtml(String(data.variations?.length || 0)) + " مورد</code></span>"
   );
 
   renderProduct(data);
