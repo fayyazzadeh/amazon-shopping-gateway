@@ -165,7 +165,7 @@ async function loadProduct(inputUrl) {
   setResult(
     "success",
     "<strong>Live product found</strong>" +
-    "<span>بازار: " + escapeHtml(data.marketplace) + "</span>" +
+    "<span>Marketplace: " + escapeHtml(data.marketplace) + "</span>" +
     "<span>" + escapeHtml(data.marketplace === "Next UK" ? "Style Number" : "Parent ASIN") + ": <code>" + escapeHtml(data.parentAsin || "—") + "</code></span>" +
     "<span>" + escapeHtml(data.marketplace === "Next UK" ? "Size Options" : "Child ASIN") + ": <code>" + escapeHtml(String(data.variations?.length || 0)) + " options</code></span>"
   );
