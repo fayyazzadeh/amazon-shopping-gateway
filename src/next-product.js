@@ -30,7 +30,7 @@ function normalizeSizeOption(option, product, index) {
 
 export function normalizeNextProduct(payload, sourceUrl) {
   const product = firstProduct(payload);
-  if (!product) return { asin: null, parentAsin: null, identifierType: "next_item_number", itemNumber: null, styleNumber: null, productCode: null, title: "محصول Next", brand: "Next", image: null, images: [], price: null, wasPrice: null, salePrice: null, availability: null, merchant: "Next", url: sourceUrl, dimensions: [], variations: [] };
+  if (!product) return { asin: null, parentAsin: null, identifierType: "next_item_number", itemNumber: null, styleNumber: null, productCode: null, title: "Next product", brand: "Next", image: null, images: [], price: null, wasPrice: null, salePrice: null, availability: null, merchant: "Next", url: sourceUrl, dimensions: [], variations: [] };
   const currency = product.currency_code ?? "GBP";
   const basePrice = product?.price_data?.price?.min_price;
   const salePrice = product?.price_data?.sale_price;
@@ -47,8 +47,8 @@ export function normalizeNextProduct(payload, sourceUrl) {
   const fitValues = [...new Set([product.fit, ...fits.map((item) => item?.display_text)].filter(Boolean))];
   const sizeValues = [...new Set(sizeOptions.map((option) => option?.name ?? option?.value).filter(Boolean))];
   const dimensions = [];
-  if (colourValues.length) dimensions.push({ name: "Color", displayName: "رنگ", values: colourValues });
-  if (fitValues.length) dimensions.push({ name: "Fit", displayName: "فیت", values: fitValues });
-  if (sizeValues.length) dimensions.push({ name: "Size", displayName: "سایز", values: sizeValues });
-  return { asin: product.item_number ?? null, parentAsin: product.style_number ?? null, identifierType: "next_item_number", itemNumber: product.item_number ?? null, styleNumber: product.style_number ?? null, productCode: product.product_code ?? null, title: product.title ?? "محصول Next", brand: product.brand ?? "Next", image: images[0] ?? null, images, description: product.item_description ?? null, category: product.category ?? null, collection: product.collection ?? null, department: product.department ?? null, gender: product.gender ?? null, colour: product.colour ?? null, fit: product.fit ?? null, rating: null, reviewCount: null, price, wasPrice: normalizeMoney(wasPrice, wasPrice != null ? "£" + wasPrice : null, currency), salePrice: normalizeMoney(salePrice, salePrice != null ? "£" + salePrice : null, currency), availability: sizeOptions.some((option) => option?.stock_status === "InStock") ? "In stock" : "Out of stock", merchant: "Next", url: sourceUrl, dimensions, variations, availableForCollectInStore: Boolean(product.available_for_collect_in_store), offerType: product.offer_type ?? null, fits, colours };
+  if (colourValues.length) dimensions.push({ name: "Color", displayName: "Colour", values: colourValues });
+  if (fitValues.length) dimensions.push({ name: "Fit", displayName: "Fit", values: fitValues });
+  if (sizeValues.length) dimensions.push({ name: "Size", displayName: "Size", values: sizeValues });
+  return { asin: product.item_number ?? null, parentAsin: product.style_number ?? null, identifierType: "next_item_number", itemNumber: product.item_number ?? null, styleNumber: product.style_number ?? null, productCode: product.product_code ?? null, title: product.title ?? "Next product", brand: product.brand ?? "Next", image: images[0] ?? null, images, description: product.item_description ?? null, category: product.category ?? null, collection: product.collection ?? null, department: product.department ?? null, gender: product.gender ?? null, colour: product.colour ?? null, fit: product.fit ?? null, rating: null, reviewCount: null, price, wasPrice: normalizeMoney(wasPrice, wasPrice != null ? "£" + wasPrice : null, currency), salePrice: normalizeMoney(salePrice, salePrice != null ? "£" + salePrice : null, currency), availability: sizeOptions.some((option) => option?.stock_status === "InStock") ? "In stock" : "Out of stock", merchant: "Next", url: sourceUrl, dimensions, variations, availableForCollectInStore: Boolean(product.available_for_collect_in_store), offerType: product.offer_type ?? null, fits, colours };
 }

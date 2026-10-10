@@ -43,7 +43,7 @@ function renderGallery(variation) {
     visual.innerHTML = '<img class="amazon-product-image" src="' + escapeHtml(image) +
       '" alt="' + escapeHtml(state.product.title || "Amazon product") + '" />';
   } else {
-    visual.innerHTML = '<div class="image-placeholder">تصویر محصول از منبع فروشگاه برنگردانده شد</div>';
+    visual.innerHTML = '<div class="image-placeholder">The store did not return a product image</div>';
   }
 }
 
@@ -59,7 +59,7 @@ function renderVariations() {
     wrapper.className = "dimension-block";
     wrapper.innerHTML =
       '<div class="dimension-title"><strong>' + escapeHtml(dimension.displayName) +
-      '</strong><span>' + escapeHtml(state.selectedAttributes[dimension.name] || "انتخاب نشده") +
+      '</strong><span>' + escapeHtml(state.selectedAttributes[dimension.name] || "Not selected") +
       '</span></div><div class="dimension-options"></div>';
 
     const options = wrapper.querySelector(".dimension-options");
@@ -84,8 +84,8 @@ function renderVariations() {
 
 function formatCustomerPrice(product) {
   const pricing = product?.pricing;
-  if (!pricing?.configured) return "پس از تنظیم نرخ";
-  return new Intl.NumberFormat("fa-IR").format(pricing.customerAmount) + " تومان";
+  if (!pricing?.configured) return "Exchange rate not configured";
+  return new Intl.NumberFormat("en-US").format(pricing.customerAmount) + " IRR";
 }
 
 function updateSelection() {
@@ -95,7 +95,7 @@ function updateSelection() {
     const price = rootPrice?.displayAmount || (rootPrice ? rootPrice.amount + " " + rootPrice.currency : "—");
     document.querySelector("#selected-price").textContent = price;
     document.querySelector("#line-product").textContent = price;
-    document.querySelector("#availability-text").textContent = state.product?.availability || "وضعیت موجودی توسط فروشگاه اعلام نکرده است.";
+    document.querySelector("#availability-text").textContent = state.product?.availability || "The store has not provided availability information.";
     renderGallery(state.product);
     return;
   }
@@ -110,7 +110,7 @@ function updateSelection() {
   const selectedAsin = document.querySelector("#selected-asin");
   if (selectedAsin) selectedAsin.textContent = variation.asin || "—";
   document.querySelector("#availability-text").textContent =
-    variation.availability || "وضعیت موجودی توسط فروشگاه اعلام نکرده است.";
+    variation.availability || "The store has not provided availability information.";
   renderGallery(variation);
 }
 
@@ -122,19 +122,19 @@ function renderProduct(product) {
     product.variations?.[0];
   if (initial) state.selectedAttributes = { ...initial.attributes };
 
-  document.querySelector("#product-title").textContent = product.title || "محصول Amazon / Next";
+  document.querySelector("#product-title").textContent = product.title || "Amazon / Next product";
   document.querySelector("#product-store").textContent = "Store · " + product.marketplace;
   document.querySelector("#product-brand").textContent = product.brand || "—";
   document.querySelector("#product-rating").textContent = product.rating || "—";
   document.querySelector("#product-reviews").textContent =
-    product.reviewCount ? "(" + product.reviewCount + " نظر)" : "امتیاز در دسترس نیست";
+    product.reviewCount ? "(" + product.reviewCount + " reviews)" : "Rating unavailable";
   const identifierLabel = product.marketplace === "Next UK" ? "Item" : "Child ASIN";
   document.querySelector("#product-source-label").textContent =
     (product.marketplace === "Next UK" ? "Style " : "Parent ") +
     (product.parentAsin || "—") + " · " + (product.variations?.length || 0) + " " + identifierLabel;
   document.querySelector("#product-badge").textContent = "LIVE";
   document.querySelector("#variation-status").textContent =
-    (product.variations?.length || 0) + " " + identifierLabel + " از منبع فروشگاه دریافت شد.";
+    (product.variations?.length || 0) + " " + identifierLabel + " options retrieved from the store.";
   document.querySelector("#product-parent-asin").textContent = product.parentAsin || "—";
   document.querySelector("#product-variation-count").textContent =
     String(product.variations?.length || 0);
@@ -145,7 +145,7 @@ function renderProduct(product) {
 }
 
 async function loadProduct(inputUrl) {
-  setResult("loading", "<strong>در حال دریافت اطلاعات واقعی محصول…</strong><span>اطلاعات محصول و Variationهای Amazon در حال بررسی است.</span>");
+  setResult("loading", "<strong>Loading live product data…</strong><span>Retrieving product details and available Amazon variations.</span>");
 
   const response = await fetch("/api/product?url=" + encodeURIComponent(inputUrl), {
     headers: { accept: "application/json" }
@@ -154,20 +154,20 @@ async function loadProduct(inputUrl) {
 
   if (!response.ok || !data.ok) {
     const hint = data.error === "CREATORS_API_NOT_CONFIGURED"
-      ? "<span>ابتدا دسترسی Amazon Creators API روی Worker تنظیم شود.</span>"
+      ? "<span>Configure Amazon Creators API credentials in the Worker first.</span>"
       : data.error === "RAPIDAPI_NEXT_NOT_CONFIGURED"
-        ? "<span>ابتدا RAPIDAPI_KEY، RAPIDAPI_NEXT_HOST و RAPIDAPI_NEXT_ENDPOINT روی Worker تنظیم شوند.</span>"
+        ? "<span>Configure RAPIDAPI_KEY, RAPIDAPI_NEXT_HOST, and RAPIDAPI_NEXT_ENDPOINT in the Worker first.</span>"
         : "";
-    setResult("error", "<strong>" + escapeHtml(data.message || "دریافت اطلاعات محصول ناموفق بود.") + "</strong>" + hint);
+    setResult("error", "<strong>" + escapeHtml(data.message || "Could not retrieve product information.") + "</strong>" + hint);
     return;
   }
 
   setResult(
     "success",
-    "<strong>محصول واقعی شناسایی شد</strong>" +
-    "<span>بازار: " + escapeHtml(data.marketplace) + "</span>" +
+    "<strong>Live product found</strong>" +
+    "<span>Marketplace: " + escapeHtml(data.marketplace) + "</span>" +
     "<span>" + escapeHtml(data.marketplace === "Next UK" ? "Style Number" : "Parent ASIN") + ": <code>" + escapeHtml(data.parentAsin || "—") + "</code></span>" +
-    "<span>" + escapeHtml(data.marketplace === "Next UK" ? "Size Options" : "Child ASIN") + ": <code>" + escapeHtml(String(data.variations?.length || 0)) + " مورد</code></span>"
+    "<span>" + escapeHtml(data.marketplace === "Next UK" ? "Size Options" : "Child ASIN") + ": <code>" + escapeHtml(String(data.variations?.length || 0)) + " options</code></span>"
   );
 
   renderProduct(data);
@@ -183,7 +183,7 @@ document.querySelector("#product-form").addEventListener("submit", async (event)
     await loadProduct(input);
   } catch (error) {
     setResult("error",
-      "<strong>ارتباط با سرویس اطلاعات محصول ناموفق بود.</strong><span>" +
+      "<strong>Could not connect to the product data service.</strong><span>" +
       escapeHtml(error instanceof Error ? error.message : String(error)) +
       "</span>"
     );

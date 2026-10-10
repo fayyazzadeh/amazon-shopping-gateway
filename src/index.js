@@ -2,7 +2,7 @@ import { normalizeCreatorsProduct } from "./product-data.js";
 import { normalizeNextProduct } from "./next-product.js";
 
 const SHORT_HOSTS = new Set(["amzn.to", "amzn.eu", "a.co"]);
-const AMAZON_HOST_PATTERN = /(^|\.)amazon\.(com|ae)$/i;
+const AMAZON_HOST_PATTERN = /(^|\.)amazon\.(com|ae|co\.uk)$/i;
 const ASIN_PATTERNS = [
   /\/dp\/([A-Z0-9]{10})(?:[/?]|$)/i,
   /\/gp\/product\/([A-Z0-9]{10})(?:[/?]|$)/i,
@@ -74,7 +74,7 @@ async function getNextDiagnostics(env, liveCheck) {
       configured: false,
       liveChecked: false,
       ...config,
-      message: "اتصال RapidAPI برای Next هنوز روی Worker به‌طور کامل تنظیم نشده است."
+      message: "RapidAPI for Next has not been fully configured on this Worker."
     };
   }
 
@@ -84,7 +84,7 @@ async function getNextDiagnostics(env, liveCheck) {
       configured: false,
       liveChecked: false,
       ...config,
-      message: "RAPIDAPI_NEXT_ENDPOINT معتبر نیست."
+      message: "RAPIDAPI_NEXT_ENDPOINT is not a valid URL."
     };
   }
 
@@ -94,7 +94,7 @@ async function getNextDiagnostics(env, liveCheck) {
       configured: true,
       liveChecked: false,
       ...config,
-      message: "سه تنظیم RapidAPI برای Next روی Worker قابل مشاهده هستند؛ کلید نمایش داده نمی‌شود."
+      message: "All three RapidAPI settings for Next are present on the Worker. The API key is never displayed."
     };
   }
 
@@ -107,7 +107,7 @@ async function getNextDiagnostics(env, liveCheck) {
         liveChecked: true,
         ...config,
         rapidApiError: result.error || "NEXT_PRODUCT_LOOKUP_FAILED",
-        message: result.message || "تست زنده Next ناموفق بود."
+        message: result.message || "The live Next check failed."
       };
     }
 
@@ -124,7 +124,7 @@ async function getNextDiagnostics(env, liveCheck) {
         price: result.price || null,
         variationCount: Array.isArray(result.variations) ? result.variations.length : 0
       },
-      message: "اتصال زنده Worker به RapidAPI و Next با موفقیت انجام شد."
+      message: "The Worker connected to RapidAPI and Next successfully."
     };
   } catch (error) {
     return {
@@ -135,7 +135,7 @@ async function getNextDiagnostics(env, liveCheck) {
       rapidApiStatus: null,
       rapidApiError: "LIVE_CHECK_FAILED",
       detail: error instanceof Error ? error.message : String(error),
-      message: "تنظیمات وجود دارند، اما تست زنده RapidAPI/Next ناموفق بود."
+      message: "Configuration is present, but the live RapidAPI/Next check failed."
     };
   }
 }
@@ -144,7 +144,7 @@ async function fetchNextProduct(env, inputUrl) {
   if (!env.RAPIDAPI_KEY || !env.RAPIDAPI_NEXT_HOST || !env.RAPIDAPI_NEXT_ENDPOINT) {
     return {
       error: "RAPIDAPI_NEXT_NOT_CONFIGURED",
-      message: "اتصال RapidAPI برای Next هنوز روی Worker تنظیم نشده است."
+      message: "RapidAPI for Next has not been configured on this Worker."
     };
   }
 
@@ -152,11 +152,11 @@ async function fetchNextProduct(env, inputUrl) {
   try {
     source = new URL(inputUrl);
   } catch {
-    return { error: "INVALID_URL", message: "لینک واردشده معتبر نیست." };
+    return { error: "INVALID_URL", message: "The supplied URL is invalid." };
   }
 
   if (!NEXT_HOST_PATTERN.test(source.hostname.toLowerCase())) {
-    return { error: "UNSUPPORTED_URL", message: "فقط لینک next.co.uk پشتیبانی می‌شود." };
+    return { error: "UNSUPPORTED_URL", message: "Only next.co.uk product URLs are supported." };
   }
 
   const endpoint = new URL(env.RAPIDAPI_NEXT_ENDPOINT);
@@ -187,7 +187,7 @@ async function fetchNextProduct(env, inputUrl) {
   if (!product.title && !product.price && !product.variations.length) {
     return {
       error: "NEXT_PRODUCT_NOT_FOUND",
-      message: "RapidAPI اطلاعات قابل استفاده‌ای برای این محصول Next برنگرداند."
+      message: "RapidAPI did not return usable data for this Next product."
     };
   }
 
@@ -236,11 +236,20 @@ function buildCustomerPricing(price, env) {
 }
 
 function marketplaceConfig(host, env) {
+  if (host === "amazon.co.uk" || host.endsWith(".amazon.co.uk")) {
+    return {
+      label: "Amazon UK",
+      domain: "www.amazon.co.uk",
+      tokenEndpoint: env?.AMAZON_TOKEN_ENDPOINT_UK || "https://api.amazon.co.uk/auth/o2/token",
+      partnerTag: env?.AMAZON_PARTNER_TAG_UK || null
+    };
+  }
+
   if (host === "amazon.ae" || host.endsWith(".amazon.ae")) {
     return {
       label: "Amazon UAE",
       domain: "www.amazon.ae",
-      tokenEndpoint: "https://api.amazon.co.uk/auth/o2/token",
+      tokenEndpoint: env?.AMAZON_TOKEN_ENDPOINT_AE || "https://api.amazon.co.uk/auth/o2/token",
       partnerTag: env?.AMAZON_PARTNER_TAG_AE || env?.AMAZON_PARTNER_TAG || null
     };
   }
@@ -249,7 +258,7 @@ function marketplaceConfig(host, env) {
     return {
       label: "Amazon US",
       domain: "www.amazon.com",
-      tokenEndpoint: "https://api.amazon.com/auth/o2/token",
+      tokenEndpoint: env?.AMAZON_TOKEN_ENDPOINT_US || "https://api.amazon.com/auth/o2/token",
       partnerTag: env?.AMAZON_PARTNER_TAG_US || env?.AMAZON_PARTNER_TAG || null
     };
   }
@@ -266,13 +275,13 @@ async function resolveShortUrl(inputUrl) {
   try {
     source = new URL(inputUrl);
   } catch {
-    return { error: "INVALID_URL", message: "لینک واردشده معتبر نیست." };
+    return { error: "INVALID_URL", message: "The supplied URL is invalid." };
   }
 
   if (!isAllowedShortUrl(source)) {
     return {
       error: "UNSUPPORTED_URL",
-      message: "فقط لینک‌های کوتاه amzn.to، amzn.eu و a.co قابل Resolve هستند."
+      message: "Only amzn.to, amzn.eu, and a.co short links can be resolved."
     };
   }
 
@@ -285,7 +294,7 @@ async function resolveShortUrl(inputUrl) {
       cache: "no-store"
     });
   } catch {
-    return { error: "RESOLVE_FAILED", message: "اتصال به لینک کوتاه یا مقصد آن ناموفق بود." };
+    return { error: "RESOLVE_FAILED", message: "Could not connect to the short link or its destination." };
   }
 
   const finalUrl = new URL(response.url || source.toString());
@@ -294,7 +303,7 @@ async function resolveShortUrl(inputUrl) {
   if (!AMAZON_HOST_PATTERN.test(finalHost)) {
     return {
       error: "UNSAFE_DESTINATION",
-      message: "لینک کوتاه به یک دامنه Amazon هدایت نشد."
+      message: "The short link did not redirect to an Amazon domain."
     };
   }
 
@@ -302,7 +311,7 @@ async function resolveShortUrl(inputUrl) {
   if (!asin) {
     return {
       error: "ASIN_NOT_FOUND",
-      message: "لینک به Amazon رسید، اما ASIN از آدرس نهایی قابل استخراج نبود.",
+      message: "The link reached Amazon, but an ASIN could not be extracted from the final URL.",
       resolvedUrl: finalUrl.toString()
     };
   }
@@ -320,7 +329,7 @@ async function resolveAmazonInput(inputUrl) {
   try {
     source = new URL(inputUrl);
   } catch {
-    return { error: "INVALID_URL", message: "لینک واردشده معتبر نیست." };
+    return { error: "INVALID_URL", message: "The supplied URL is invalid." };
   }
 
   const host = source.hostname.toLowerCase();
@@ -335,7 +344,7 @@ async function resolveAmazonInput(inputUrl) {
   if (!AMAZON_HOST_PATTERN.test(host)) {
     return {
       error: "UNSUPPORTED_URL",
-      message: "فقط لینک Amazon.com، Amazon.ae و لینک‌های کوتاه Amazon پشتیبانی می‌شوند."
+      message: "Only Amazon.com, Amazon.co.uk, Amazon.ae, and supported Amazon short links are supported."
     };
   }
 
@@ -343,7 +352,7 @@ async function resolveAmazonInput(inputUrl) {
   if (!asin) {
     return {
       error: "ASIN_NOT_FOUND",
-      message: "ASIN از لینک Amazon قابل استخراج نیست."
+      message: "Could not extract an ASIN from the Amazon URL."
     };
   }
 
@@ -361,14 +370,14 @@ function getConfigForHost(host, env) {
   if (!config) {
     return {
       error: "UNSUPPORTED_MARKETPLACE",
-      message: "بازار Amazon این لینک پشتیبانی نمی‌شود."
+      message: "This Amazon marketplace is not supported."
     };
   }
 
   if (!env.CREATORS_API_CLIENT_ID || !env.CREATORS_API_CLIENT_SECRET || !config.partnerTag) {
     return {
       error: "CREATORS_API_NOT_CONFIGURED",
-      message: "دسترسی Amazon Creators API هنوز روی Worker تنظیم نشده است."
+      message: "Amazon Creators API access has not been configured on this Worker."
     };
   }
 
@@ -473,7 +482,7 @@ async function fetchProduct(env, inputUrl) {
   if (!firstItem?.asin) {
     return {
       error: "PRODUCT_NOT_FOUND",
-      message: "Amazon اطلاعاتی برای این ASIN برنگرداند.",
+      message: "Amazon did not return data for this ASIN.",
       asin: resolved.asin,
       marketplace: config.label
     };
@@ -559,7 +568,7 @@ export default {
 
     if (url.pathname === "/api/diagnostics/next") {
       if (request.method !== "GET") {
-        return json({ error: "METHOD_NOT_ALLOWED", message: "فقط GET پشتیبانی می‌شود." }, 405);
+        return json({ error: "METHOD_NOT_ALLOWED", message: "Only GET requests are supported." }, 405);
       }
 
       const liveCheck = url.searchParams.get("live") === "1";
@@ -569,12 +578,12 @@ export default {
 
     if (url.pathname === "/api/resolve-product") {
       if (request.method !== "GET") {
-        return json({ error: "METHOD_NOT_ALLOWED", message: "فقط GET پشتیبانی می‌شود." }, 405);
+        return json({ error: "METHOD_NOT_ALLOWED", message: "Only GET requests are supported." }, 405);
       }
 
       const inputUrl = url.searchParams.get("url");
       if (!inputUrl) {
-        return json({ error: "MISSING_URL", message: "پارامتر url الزامی است." }, 400);
+        return json({ error: "MISSING_URL", message: "The url query parameter is required." }, 400);
       }
 
       const result = await resolveAmazonInput(inputUrl);
@@ -583,12 +592,12 @@ export default {
 
     if (url.pathname === "/api/product") {
       if (request.method !== "GET") {
-        return json({ error: "METHOD_NOT_ALLOWED", message: "فقط GET پشتیبانی می‌شود." }, 405);
+        return json({ error: "METHOD_NOT_ALLOWED", message: "Only GET requests are supported." }, 405);
       }
 
       const inputUrl = url.searchParams.get("url");
       if (!inputUrl) {
-        return json({ error: "MISSING_URL", message: "پارامتر url الزامی است." }, 400);
+        return json({ error: "MISSING_URL", message: "The url query parameter is required." }, 400);
       }
 
       try {
@@ -598,7 +607,7 @@ export default {
       } catch (error) {
         return json({
           error: "PRODUCT_LOOKUP_FAILED",
-          message: "دریافت اطلاعات واقعی محصول ناموفق بود.",
+          message: "Could not retrieve live product data.",
           detail: error instanceof Error ? error.message : String(error)
         }, 502);
       }
