@@ -2,7 +2,7 @@ import { normalizeCreatorsProduct } from "./product-data.js";
 import { normalizeNextProduct } from "./next-product.js";
 
 const SHORT_HOSTS = new Set(["amzn.to", "amzn.eu", "a.co"]);
-const AMAZON_HOST_PATTERN = /(^|\\.)amazon\\.(com|ae|co\\.uk)$/i;
+const AMAZON_HOST_PATTERN = /(^|\.)amazon\.(com|ae|co\.uk)$/i;
 const ASIN_PATTERNS = [
   /\/dp\/([A-Z0-9]{10})(?:[/?]|$)/i,
   /\/gp\/product\/([A-Z0-9]{10})(?:[/?]|$)/i,
