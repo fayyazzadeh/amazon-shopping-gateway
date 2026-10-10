@@ -1,4 +1,5 @@
 import { normalizeCreatorsProduct } from "./product-data.js";
+import { fetchOpenWebNinjaProduct } from "./openwebninja.js";
 import { normalizeNextProduct } from "./next-product.js";
 
 const SHORT_HOSTS = new Set(["amzn.to", "amzn.eu", "a.co"]);
@@ -467,6 +468,25 @@ async function fetchProduct(env, inputUrl) {
   if (isNextUrl(inputUrl)) return fetchNextProduct(env, inputUrl);
   const resolved = await resolveAmazonInput(inputUrl);
   if (!resolved.ok) return resolved;
+
+  const host = resolved.host.toLowerCase();
+  const supportsOpenWebNinja =
+    host === "amazon.com" ||
+    host.endsWith(".amazon.com") ||
+    host === "amazon.ae" ||
+    host.endsWith(".amazon.ae");
+
+  // Prefer the configured OpenWeb Ninja provider for US and UAE. Keep the
+  // existing Creators API path for UK and as a fallback when this key is absent.
+  if (env?.OPENWEBNINJA_API_KEY && supportsOpenWebNinja) {
+    const product = await fetchOpenWebNinjaProduct(env, resolved);
+    product.pricing = buildCustomerPricing(product.price, env);
+    product.variations = product.variations.map((variation) => ({
+      ...variation,
+      pricing: buildCustomerPricing(variation.price, env)
+    }));
+    return product;
+  }
 
   const configResult = getConfigForHost(resolved.host, env);
   if (!configResult.ok) return configResult;
