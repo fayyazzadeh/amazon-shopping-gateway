@@ -2,7 +2,7 @@ import { normalizeCreatorsProduct } from "./product-data.js";
 import { normalizeNextProduct } from "./next-product.js";
 
 const SHORT_HOSTS = new Set(["amzn.to", "amzn.eu", "a.co"]);
-const AMAZON_HOST_PATTERN = /(^|\.)amazon\.(com|ae)$/i;
+const AMAZON_HOST_PATTERN = /(^|\\.)amazon\\.(com|ae|co\\.uk)$/i;
 const ASIN_PATTERNS = [
   /\/dp\/([A-Z0-9]{10})(?:[/?]|$)/i,
   /\/gp\/product\/([A-Z0-9]{10})(?:[/?]|$)/i,
@@ -236,11 +236,20 @@ function buildCustomerPricing(price, env) {
 }
 
 function marketplaceConfig(host, env) {
+  if (host === "amazon.co.uk" || host.endsWith(".amazon.co.uk")) {
+    return {
+      label: "Amazon UK",
+      domain: "www.amazon.co.uk",
+      tokenEndpoint: env?.AMAZON_TOKEN_ENDPOINT_UK || "https://api.amazon.co.uk/auth/o2/token",
+      partnerTag: env?.AMAZON_PARTNER_TAG_UK || null
+    };
+  }
+
   if (host === "amazon.ae" || host.endsWith(".amazon.ae")) {
     return {
       label: "Amazon UAE",
       domain: "www.amazon.ae",
-      tokenEndpoint: "https://api.amazon.co.uk/auth/o2/token",
+      tokenEndpoint: env?.AMAZON_TOKEN_ENDPOINT_AE || "https://api.amazon.co.uk/auth/o2/token",
       partnerTag: env?.AMAZON_PARTNER_TAG_AE || env?.AMAZON_PARTNER_TAG || null
     };
   }
@@ -249,7 +258,7 @@ function marketplaceConfig(host, env) {
     return {
       label: "Amazon US",
       domain: "www.amazon.com",
-      tokenEndpoint: "https://api.amazon.com/auth/o2/token",
+      tokenEndpoint: env?.AMAZON_TOKEN_ENDPOINT_US || "https://api.amazon.com/auth/o2/token",
       partnerTag: env?.AMAZON_PARTNER_TAG_US || env?.AMAZON_PARTNER_TAG || null
     };
   }
@@ -335,7 +344,7 @@ async function resolveAmazonInput(inputUrl) {
   if (!AMAZON_HOST_PATTERN.test(host)) {
     return {
       error: "UNSUPPORTED_URL",
-      message: "فقط لینک Amazon.com، Amazon.ae و لینک‌های کوتاه Amazon پشتیبانی می‌شوند."
+      message: "فقط لینک Amazon.com، Amazon.co.uk، Amazon.ae و لینک‌های کوتاه Amazon پشتیبانی می‌شوند."
     };
   }
 
