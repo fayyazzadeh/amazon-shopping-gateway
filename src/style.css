@@ -35,7 +35,7 @@ button { cursor: pointer; }
 h1 { margin: 15px auto 16px; font-size: clamp(34px, 5.2vw, 64px); line-height: 1.08; letter-spacing: -.055em; max-width: 800px; }
 h1 em { color: #8b5a19; font-style: normal; }
 .hero-copy p { max-width: 670px; margin: 0 auto 32px; color: var(--muted); font-size: 16px; line-height: 2; }
-.search-card { width: min(900px, 100%); margin: 0 auto; padding: 18px; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; text-align: right; box-shadow: 0 16px 40px rgba(0,0,0,.045); }
+.search-card { width: min(900px, 100%); margin: 0 auto; padding: 18px; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; text-align: left; box-shadow: 0 16px 40px rgba(0,0,0,.045); }
 .search-card label { display: block; margin-bottom: 9px; font-size: 13px; font-weight: 800; }
 .input-row { display: flex; gap: 9px; }
 .input-row input { flex: 1; min-width: 0; height: 52px; padding: 0 15px; border: 1px solid #cfcfc9; border-radius: 10px; outline: none; color: var(--ink); background: #fff; direction: ltr; text-align: left; }
