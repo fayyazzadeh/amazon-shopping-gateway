@@ -25,7 +25,7 @@ Amazon marketplaces share the product-normalization and API integration layer, w
 ## Planned first release
 
 - Next.js + TypeScript application and independent Route Handlers
-- Persian RTL storefront
+- English LTR storefront
 - Product link validation and variant selection
 - Manual purchase request submission
 - Admin review of product availability, shipping, fees, and final price
