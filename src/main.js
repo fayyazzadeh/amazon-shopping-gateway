@@ -115,7 +115,7 @@ app.innerHTML = `
             <div><span>Shipping and service</span><b>Quote required</b></div>
             <div><span>Purchase service fee</span><b>Quote required</b></div>
           </div>
-          <div class="price-total"><span>Estimated total</span><strong>پس از استعلام</strong></div>
+          <div class="price-total"><span>Estimated total</span><strong>Quote required</strong></div>
           <button class="primary-cta" type="button">Continue to price estimate <span>→</span></button>
           <p>No payment is taken at this stage.</p>
         </aside>
@@ -181,7 +181,7 @@ function showProduct(asin, marketplace, resolvedUrl = "", sourceUrl = "") {
 
   result.hidden = false;
   result.className = "result success";
-  result.innerHTML = `<strong>Selected product شناسایی شد</strong><span>بازار: ${marketplace}</span><span>ASIN: <code>${asin}</code></span>${productUrl ? `<span><a href="${productUrl}" target="_blank" rel="noreferrer">View product on Amazon</a></span>` : ""}`;
+  result.innerHTML = `<strong>Product link recognized</strong><span>Marketplace: ${marketplace}</span><span>ASIN: <code>${asin}</code></span>${productUrl ? `<span><a href="${productUrl}" target="_blank" rel="noreferrer">View product on Amazon</a></span>` : ""}`;
 
   document.querySelector("#product-title").textContent = title;
   document.querySelector("#product-store").textContent = `Amazon Store · ${marketplace}`;
