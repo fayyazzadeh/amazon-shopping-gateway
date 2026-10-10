@@ -26,8 +26,8 @@ function sourcePrice(product) {
 
 function customerPrice(product) {
   const p = product?.pricing;
-  if (!p?.configured) return "پس از تنظیم نرخ";
-  return new Intl.NumberFormat("fa-IR").format(p.customerAmount) + " تومان";
+  if (!p?.configured) return "Exchange rate not configured";
+  return new Intl.NumberFormat("en-US").format(p.customerAmount) + " IRR";
 }
 
 function applyGatewayProduct(data) {
@@ -38,47 +38,47 @@ function applyGatewayProduct(data) {
   const total = document.querySelector(".price-total strong");
   if (total) total.textContent = customerPrice(product);
   const cta = document.querySelector(".primary-cta");
-  if (cta) cta.textContent = "ادامه و استعلام قیمت ←";
+  if (cta) cta.textContent = "Continue to price estimate →";
 }
 
 app.innerHTML = `
   <main class="page">
     <header class="topbar">
-      <a class="brand" href="#" aria-label="صفحه اصلی">
+      <a class="brand" href="#" aria-label="Home">
         <span class="brand-mark">A</span>
-        <span class="brand-copy"><strong>Amazon Shopping Gateway</strong><small>خرید از Amazon و Next، ساده‌تر</small></span>
+        <span class="brand-copy"><strong>Amazon Shopping Gateway</strong><small>Shopping from Amazon and Next, made simpler</small></span>
       </a>
-      <nav class="nav" aria-label="ناوبری اصلی">
-        <a href="#how">نحوه خرید</a>
-        <a href="#faq">سؤالات متداول</a>
-        <a class="nav-order" href="#order">پیگیری سفارش</a>
+      <nav class="nav" aria-label="Main navigation">
+        <a href="#how">How it works</a>
+        <a href="#faq">FAQ</a>
+        <a class="nav-order" href="#order">Order inquiry</a>
       </nav>
     </header>
 
     <section class="hero">
       <div class="hero-copy">
-        <span class="eyebrow">خرید از Amazon.com، Amazon.ae و Next.co.uk</span>
-        <h1>محصولت را از آمازون پیدا کن، <em>ما بقیه مسیر را ساده می‌کنیم.</em></h1>
-        <p>لینک محصول را وارد کن تا اطلاعات کالا، مدل‌ها، سایزها و قیمت تقریبی آن برای بررسی سفارش آماده شود.</p>
+        <span class="eyebrow">Shop Amazon.com, Amazon.co.uk, Amazon.ae, and Next.co.uk</span>
+        <h1>Find your product on Amazon. <em>We make the rest simple.</em></h1>
+        <p>Paste a product link to review item details, variants, sizes, and an estimated price before placing an order.</p>
       </div>
 
       <form id="product-form" class="search-card">
-        <label for="amazon-url">لینک محصول Amazon / Next یا Next</label>
+        <label for="amazon-url">Amazon or Next product URL</label>
         <div class="input-row">
-          <input id="amazon-url" name="amazon-url" type="url" inputmode="url" placeholder="https://www.amazon.com/dp/... یا https://www.next.co.uk/style/..." autocomplete="off" required />
-          <button type="submit"><span>بررسی محصول</span><b>←</b></button>
+          <input id="amazon-url" name="amazon-url" type="url" inputmode="url" placeholder="https://www.amazon.com/dp/... or https://www.next.co.uk/style/..." autocomplete="off" required />
+          <button type="submit"><span>Check product</span><b>←</b></button>
         </div>
-        <div class="supported"><span>پشتیبانی از</span><b>Amazon.com</b><b>Amazon.ae</b><b>Next.co.uk</b><b>amzn.to</b><b>a.co</b></div>
+        <div class="supported"><span>Supported stores:</span><b>Amazon.com</b><b>Amazon.ae</b><b>Next.co.uk</b><b>amzn.to</b><b>a.co</b></div>
         <div id="result" class="result" hidden></div>
       </form>
     </section>
 
     <section id="product-preview" class="product-shell" hidden>
-      <div class="section-kicker"><span>اطلاعات محصول</span><small id="product-source-label">محصول انتخاب‌شده</small></div>
+      <div class="section-kicker"><span>Product details</span><small id="product-source-label">Selected product</small></div>
       <div class="product-layout">
         <div class="gallery-panel">
           <div class="demo-badge" id="product-badge">PRODUCT</div>
-          <div class="product-visual" id="product-visual" aria-label="تصویر نمونه محصول">
+          <div class="product-visual" id="product-visual" aria-label="Product image">
             <div class="shirt shirt-back"></div><div class="shirt shirt-front"><span>BOSS</span></div>
           </div>
           <div class="thumbs"><button class="thumb active" type="button">1</button><button class="thumb" type="button">2</button><button class="thumb" type="button">3</button></div>
@@ -87,57 +87,58 @@ app.innerHTML = `
         <div class="product-info">
           <div class="store-link" id="product-store">Amazon Store</div>
           <h2 id="product-title"></h2>
-          <div class="rating"><strong id="product-rating">—</strong><span>★★★★★</span><a id="product-reviews" href="#reviews">(اطلاعات در انتظار است)</a></div>
+          <div class="rating"><strong id="product-rating">—</strong><span>★★★★★</span><a id="product-reviews" href="#reviews">(Reviews pending)</a></div>
 
           <div class="divider"></div>
 
           <div class="option-block">
-            <div class="option-title">مدل‌ها و گزینه‌ها</div>
-            <div id="variation-status" class="variation-status">برای نمایش دقیق رنگ، سایز، تصویر، قیمت و Child ASIN باید اطلاعات واقعی محصول دریافت شود.</div>
+            <div class="option-title">Variants and options</div>
+            <div id="variation-status" class="variation-status">Live product data is required to show accurate colors, sizes, images, prices, and Child ASINs.</div>
             <div id="color-options" class="color-options"></div>
             <div id="size-options" class="size-options"></div>
           </div>
 
-          <div class="availability-note"><span class="dot"></span><span id="availability-text">وضعیت موجودی، ارسال و فروشنده پس از دریافت اطلاعات واقعی Amazon بررسی می‌شود.</span></div>
+          <div class="availability-note"><span class="dot"></span><span id="availability-text">Availability, shipping, and seller details will be checked when live Amazon data is available.</span></div>
 
           <div class="detail-grid">
-            <div><span>برند</span><strong id="product-brand">—</strong></div>
-            <div><span>نوع</span><strong>پوشاک</strong></div>
-            <div><span>مبدأ</span><strong id="product-origin">—</strong></div>
+            <div><span>Brand</span><strong id="product-brand">—</strong></div>
+            <div><span>Category</span><strong>Apparel</strong></div>
+            <div><span>Marketplace</span><strong id="product-origin">—</strong></div>
           </div>
         </div>
 
         <aside id="order" class="price-panel">
-          <span class="panel-label">محاسبه سفارش</span>
-          <div class="sample-price"><small>قیمت Amazon</small><strong id="selected-price">—</strong></div>
+          <span class="panel-label">Order estimate</span>
+          <div class="sample-price"><small>Amazon price</small><strong id="selected-price">—</strong></div>
           <div class="price-lines">
-            <div><span>قیمت کالا</span><b id="line-product">—</b></div>
-            <div><span>حمل و خدمات</span><b>پس از استعلام</b></div>
-            <div><span>کارمزد خرید</span><b>پس از استعلام</b></div>
+            <div><span>Item price</span><b id="line-product">—</b></div>
+            <div><span>Shipping and service</span><b>Quote required</b></div>
+            <div><span>Purchase service fee</span><b>Quote required</b></div>
           </div>
-          <div class="price-total"><span>قیمت نهایی</span><strong>پس از استعلام</strong></div>
-          <button class="primary-cta" type="button">ادامه و استعلام قیمت <span>←</span></button>
-          <p>در این مرحله پرداختی انجام نمی‌شود.</p>
+          <div class="price-total"><span>Estimated total</span><strong>پس از استعلام</strong></div>
+          <button class="primary-cta" type="button">Continue to price estimate <span>→</span></button>
+          <p>No payment is taken at this stage.</p>
         </aside>
       </div>
     </section>
 
     <section id="how" class="steps">
-      <div class="section-kicker"><span>فرآیند خرید</span><small>از لینک تا ثبت سفارش</small></div>
+      <div class="section-kicker"><span>How it works</span><small>From product link to order request</small></div>
       <div class="step-grid">
-        <article><b>01</b><h3>لینک را وارد کن</h3><p>لینک مستقیم یا لینک کوتاه Amazon را در سایت قرار بده.</p></article>
-        <article><b>02</b><h3>مدل را انتخاب کن</h3><p>رنگ، سایز و سایر Variationهای محصول را انتخاب کن.</p></article>
-        <article><b>03</b><h3>قیمت را ببین</h3><p>قیمت کالا، حمل، کارمزد و تبدیل ارز محاسبه می‌شود.</p></article>
-        <article><b>04</b><h3>درخواست خرید</h3><p>پس از تأیید، اطلاعات سفارش و پیگیری آن ثبت خواهد شد.</p></article>
+        <article><b>01</b><h3>Paste a link</h3><p>Paste a direct Amazon product link or a supported short link.</p></article>
+        <article><b>02</b><h3>Choose options</h3><p>Select available colors, sizes, and other product variations.</p></article>
+        <article><b>03</b><h3>Review the estimate</h3><p>Item price, shipping, service fees, and currency conversion are estimated.</p></article>
+        <article><b>04</b><h3>Request a purchase</h3><p>After confirmation, your purchase request can be recorded for follow-up.</p></article>
       </div>
     </section>
 
-    <footer id="faq"><span>Amazon Shopping Gateway</span><span>نسخه طراحی اولیه</span></footer>
+    <footer id="faq"><span>Amazon Shopping Gateway</span><span>Initial design preview</span></footer>
   </main>
 `;
 
 function getMarketplace(host) {
   if (host === "amazon.ae" || host.endsWith(".amazon.ae")) return "Amazon UAE";
+  if (host === "amazon.co.uk" || host.endsWith(".amazon.co.uk")) return "Amazon UK";
   if (host === "amazon.com" || host.endsWith(".amazon.com")) return "Amazon US";
   return "Amazon";
 }
@@ -168,25 +169,25 @@ function renderVariations() {
   colorRoot.innerHTML = "";
   sizeRoot.innerHTML = "";
   document.querySelector("#variation-status").textContent =
-    "Variationهای واقعی محصول هنوز از منبع Amazon دریافت نشده‌اند؛ برای جلوگیری از نمایش اطلاعات اشتباه، گزینه‌های نمونه نمایش داده نمی‌شوند.";
+    "Live product variations have not been retrieved from Amazon yet. Sample options are hidden to avoid showing inaccurate information.";
 }
 
 function showProduct(asin, marketplace, resolvedUrl = "", sourceUrl = "") {
   const result = document.querySelector("#result");
   const productUrl = resolvedUrl || sourceUrl;
   const parsed = productUrl ? new URL(productUrl) : null;
-  const title = parsed ? slugToTitle(parsed.pathname) : "محصول Amazon";
+  const title = parsed ? slugToTitle(parsed.pathname) : "Amazon product";
   currentProduct = { asin, marketplace, url: productUrl, title };
 
   result.hidden = false;
   result.className = "result success";
-  result.innerHTML = `<strong>محصول انتخاب‌شده شناسایی شد</strong><span>بازار: ${marketplace}</span><span>ASIN: <code>${asin}</code></span>${productUrl ? `<span><a href="${productUrl}" target="_blank" rel="noreferrer">مشاهده محصول در Amazon</a></span>` : ""}`;
+  result.innerHTML = `<strong>Selected product شناسایی شد</strong><span>بازار: ${marketplace}</span><span>ASIN: <code>${asin}</code></span>${productUrl ? `<span><a href="${productUrl}" target="_blank" rel="noreferrer">View product on Amazon</a></span>` : ""}`;
 
   document.querySelector("#product-title").textContent = title;
   document.querySelector("#product-store").textContent = `Amazon Store · ${marketplace}`;
-  document.querySelector("#product-brand").textContent = "در حال دریافت";
+  document.querySelector("#product-brand").textContent = "Loading…";
   document.querySelector("#product-rating").textContent = "—";
-  document.querySelector("#product-reviews").textContent = "(در انتظار اطلاعات)";
+  document.querySelector("#product-reviews").textContent = "(Awaiting data)";
   document.querySelector("#selected-price").textContent = "—";
   document.querySelector("#line-product").textContent = "—";
   document.querySelector("#product-source-label").textContent = `ASIN ${asin} · ${marketplace}`;
