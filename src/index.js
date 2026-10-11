@@ -474,10 +474,12 @@ async function fetchProduct(env, inputUrl) {
     host === "amazon.com" ||
     host.endsWith(".amazon.com") ||
     host === "amazon.ae" ||
-    host.endsWith(".amazon.ae");
+    host.endsWith(".amazon.ae") ||
+    host === "amazon.co.uk" ||
+    host.endsWith(".amazon.co.uk");
 
-  // Prefer the configured OpenWeb Ninja provider for US and UAE. Keep the
-  // existing Creators API path for UK and as a fallback when this key is absent.
+  // Prefer OpenWeb Ninja for US, UAE, and UK whenever its key is configured.
+  // Creators API remains the fallback for marketplaces where it is configured.
   if (env?.OPENWEBNINJA_API_KEY && supportsOpenWebNinja) {
     const product = await fetchOpenWebNinjaProduct(env, resolved);
     product.pricing = buildCustomerPricing(product.price, env);
