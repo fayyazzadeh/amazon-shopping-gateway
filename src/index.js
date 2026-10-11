@@ -1,4 +1,3 @@
-import { normalizeCreatorsProduct } from "./product-data.js";
 import { fetchOpenWebNinjaProduct } from "./openwebninja.js";
 import { normalizeNextProduct } from "./next-product.js";
 
@@ -10,7 +9,6 @@ const ASIN_PATTERNS = [
   /\/gp\/aw\/d\/([A-Z0-9]{10})(?:[/?]|$)/i
 ];
 
-let tokenCache = null;
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -236,37 +234,6 @@ function buildCustomerPricing(price, env) {
   };
 }
 
-function marketplaceConfig(host, env) {
-  if (host === "amazon.co.uk" || host.endsWith(".amazon.co.uk")) {
-    return {
-      label: "Amazon UK",
-      domain: "www.amazon.co.uk",
-      tokenEndpoint: env?.AMAZON_TOKEN_ENDPOINT_UK || "https://api.amazon.co.uk/auth/o2/token",
-      partnerTag: env?.AMAZON_PARTNER_TAG_UK || null
-    };
-  }
-
-  if (host === "amazon.ae" || host.endsWith(".amazon.ae")) {
-    return {
-      label: "Amazon UAE",
-      domain: "www.amazon.ae",
-      tokenEndpoint: env?.AMAZON_TOKEN_ENDPOINT_AE || "https://api.amazon.co.uk/auth/o2/token",
-      partnerTag: env?.AMAZON_PARTNER_TAG_AE || env?.AMAZON_PARTNER_TAG || null
-    };
-  }
-
-  if (host === "amazon.com" || host.endsWith(".amazon.com")) {
-    return {
-      label: "Amazon US",
-      domain: "www.amazon.com",
-      tokenEndpoint: env?.AMAZON_TOKEN_ENDPOINT_US || "https://api.amazon.com/auth/o2/token",
-      partnerTag: env?.AMAZON_PARTNER_TAG_US || env?.AMAZON_PARTNER_TAG || null
-    };
-  }
-
-  return null;
-}
-
 function isAllowedShortUrl(url) {
   return url.protocol === "https:" && SHORT_HOSTS.has(url.hostname.toLowerCase());
 }
@@ -366,104 +333,6 @@ async function resolveAmazonInput(inputUrl) {
   };
 }
 
-function getConfigForHost(host, env) {
-  const config = marketplaceConfig(host, env);
-  if (!config) {
-    return {
-      error: "UNSUPPORTED_MARKETPLACE",
-      message: "This Amazon marketplace is not supported."
-    };
-  }
-
-  if (!env.CREATORS_API_CLIENT_ID || !env.CREATORS_API_CLIENT_SECRET || !config.partnerTag) {
-    return {
-      error: "CREATORS_API_NOT_CONFIGURED",
-      message: "Amazon Creators API access has not been configured on this Worker."
-    };
-  }
-
-  return { ok: true, config };
-}
-
-async function getAccessToken(env, tokenEndpoint) {
-  const now = Date.now();
-  if (tokenCache && tokenCache.endpoint === tokenEndpoint && tokenCache.expiresAt > now + 60_000) {
-    return tokenCache.token;
-  }
-
-  const response = await fetch(tokenEndpoint, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      grant_type: "client_credentials",
-      client_id: env.CREATORS_API_CLIENT_ID,
-      client_secret: env.CREATORS_API_CLIENT_SECRET,
-      scope: "creatorsapi::default"
-    })
-  });
-
-  const data = await response.json().catch(() => null);
-  if (!response.ok || !data?.access_token) {
-    throw new Error("CREATORS_API_TOKEN_FAILED:" + response.status);
-  }
-
-  tokenCache = {
-    endpoint: tokenEndpoint,
-    token: data.access_token,
-    expiresAt: now + Math.max(60, Number(data.expires_in || 3600) - 60) * 1000
-  };
-
-  return tokenCache.token;
-}
-
-async function creatorsRequest(env, config, operation, payload) {
-  const token = await getAccessToken(env, config.tokenEndpoint);
-  const response = await fetch("https://creatorsapi.amazon/catalog/v1/" + operation, {
-    method: "POST",
-    headers: {
-      "authorization": "Bearer " + token,
-      "content-type": "application/json",
-      "x-marketplace": config.domain
-    },
-    body: JSON.stringify({
-      ...payload,
-      partnerTag: config.partnerTag,
-      marketplace: config.domain
-    })
-  });
-
-  const data = await response.json().catch(() => null);
-  if (!response.ok) {
-    const detail = data?.errors?.[0]?.message || ("HTTP " + response.status);
-    throw new Error("CREATORS_API_" + operation.toUpperCase() + "_FAILED:" + detail);
-  }
-
-  return data;
-}
-
-const PRODUCT_RESOURCES = [
-  "images.primary.large",
-  "itemInfo.title",
-  "itemInfo.byLineInfo",
-  "itemInfo.productInfo",
-  "offersV2.listings.price",
-  "offersV2.listings.availability",
-  "offersV2.listings.merchantInfo",
-  "parentASIN"
-];
-
-const VARIATION_RESOURCES = [
-  "images.primary.large",
-  "itemInfo.title",
-  "itemInfo.byLineInfo",
-  "itemInfo.productInfo",
-  "offersV2.listings.price",
-  "offersV2.listings.availability",
-  "offersV2.listings.merchantInfo",
-  "parentASIN",
-  "variationSummary.variationDimension"
-];
-
 async function fetchProduct(env, inputUrl) {
   if (isNextUrl(inputUrl)) return fetchNextProduct(env, inputUrl);
   const resolved = await resolveAmazonInput(inputUrl);
@@ -479,7 +348,6 @@ async function fetchProduct(env, inputUrl) {
     host.endsWith(".amazon.co.uk");
 
   // Prefer OpenWeb Ninja for US, UAE, and UK whenever its key is configured.
-  // Creators API remains the fallback for marketplaces where it is configured.
   if (env?.OPENWEBNINJA_API_KEY && supportsOpenWebNinja) {
     const product = await fetchOpenWebNinjaProduct(env, resolved);
     product.pricing = buildCustomerPricing(product.price, env);
@@ -490,58 +358,9 @@ async function fetchProduct(env, inputUrl) {
     return product;
   }
 
-  const configResult = getConfigForHost(resolved.host, env);
-  if (!configResult.ok) return configResult;
-
-  const config = configResult.config;
-  const itemResponse = await creatorsRequest(env, config, "getItems", {
-    itemIds: [resolved.asin],
-    itemIdType: "ASIN",
-    resources: PRODUCT_RESOURCES
-  });
-
-  const firstItem = itemResponse?.itemsResult?.items?.[0];
-  if (!firstItem?.asin) {
-    return {
-      error: "PRODUCT_NOT_FOUND",
-      message: "Amazon did not return data for this ASIN.",
-      asin: resolved.asin,
-      marketplace: config.label
-    };
-  }
-
-  const variationPages = [];
-  let page = 1;
-  let pageCount = 1;
-  let variationSummary = null;
-
-  do {
-    const response = await creatorsRequest(env, config, "getVariations", {
-      asin: resolved.asin,
-      condition: "New",
-      variationPage: page,
-      resources: VARIATION_RESOURCES
-    });
-
-    const result = response?.variationsResult;
-    variationPages.push(...(result?.items || []));
-    variationSummary = result?.variationSummary || variationSummary;
-    pageCount = Number(variationSummary?.pageCount || 1);
-    page += 1;
-  } while (page <= pageCount && page <= 100);
-
-  const product = normalizeCreatorsProduct(itemResponse, {
-    variationItems: variationPages,
-    variationSummary
-  });
-
   return {
-    ok: true,
-    sourceUrl: resolved.sourceUrl,
-    resolvedUrl: resolved.resolvedUrl,
-    marketplace: config.label,
-    marketplaceDomain: config.domain,
-    ...product
+    error: "OPENWEBNINJA_NOT_CONFIGURED",
+    message: "OpenWeb Ninja API is not configured on this Worker."
   };
 }
 
@@ -624,7 +443,7 @@ export default {
 
       try {
         const result = await fetchProduct(env, inputUrl);
-        const status = result.ok ? 200 : ["CREATORS_API_NOT_CONFIGURED", "RAPIDAPI_NEXT_NOT_CONFIGURED"].includes(result.error) ? 503 : 400;
+        const status = result.ok ? 200 : ["OPENWEBNINJA_NOT_CONFIGURED", "RAPIDAPI_NEXT_NOT_CONFIGURED"].includes(result.error) ? 503 : 400;
         return json(result, status);
       } catch (error) {
         return json({
