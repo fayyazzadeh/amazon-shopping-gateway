@@ -101,10 +101,12 @@ export function normalizeOpenWebNinjaProduct(payload, resolved) {
     throw new Error("OPENWEBNINJA_INVALID_REQUEST_ASIN");
   }
 
-  const isUae = resolved?.host === "amazon.ae" || String(resolved?.host || "").endsWith(".amazon.ae");
-  const currency = isUae ? "AED" : "USD";
-  const marketplace = isUae ? "Amazon UAE" : "Amazon US";
-  const marketplaceDomain = isUae ? "www.amazon.ae" : "www.amazon.com";
+  const host = String(resolved?.host || "").toLowerCase();
+  const isUae = host === "amazon.ae" || host.endsWith(".amazon.ae");
+  const isUk = host === "amazon.co.uk" || host.endsWith(".amazon.co.uk");
+  const currency = isUae ? "AED" : isUk ? "GBP" : "USD";
+  const marketplace = isUae ? "Amazon UAE" : isUk ? "Amazon UK" : "Amazon US";
+  const marketplaceDomain = isUae ? "www.amazon.ae" : isUk ? "www.amazon.co.uk" : "www.amazon.com";
   const price = readMoney(firstDefined(
     details?.product_price, details?.price, details?.current_price, details?.price_amount
   ), currency);
@@ -171,10 +173,12 @@ export async function fetchOpenWebNinjaProduct(env, resolved) {
     return { error: "OPENWEBNINJA_NOT_CONFIGURED", message: "OpenWeb Ninja API is not configured on this Worker." };
   }
 
-  const isUae = resolved?.host === "amazon.ae" || String(resolved?.host || "").endsWith(".amazon.ae");
+  const host = String(resolved?.host || "").toLowerCase();
+  const isUae = host === "amazon.ae" || host.endsWith(".amazon.ae");
+  const isUk = host === "amazon.co.uk" || host.endsWith(".amazon.co.uk");
   const endpoint = new URL(API_ENDPOINT);
   endpoint.searchParams.set("asin", resolved.asin);
-  endpoint.searchParams.set("country", isUae ? "AE" : "US");
+  endpoint.searchParams.set("country", isUae ? "AE" : isUk ? "GB" : "US");
 
   const response = await fetch(endpoint.toString(), {
     method: "GET",
