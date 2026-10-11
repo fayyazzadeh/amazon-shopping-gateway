@@ -51,3 +51,35 @@ test("returns an explicit empty-data error instead of a misleading product", () 
     /OPENWEBNINJA_PRODUCT_DATA_EMPTY/
   );
 });
+
+test("normalizes an Amazon.co.uk response with GBP pricing and UK marketplace metadata", () => {
+  const resolved = {
+    asin: "B08158GKCL",
+    host: "www.amazon.co.uk",
+    sourceUrl: "https://www.amazon.co.uk/dp/B08158GKCL",
+    resolvedUrl: "https://www.amazon.co.uk/dp/B08158GKCL"
+  };
+  const payload = {
+    data: {
+      asin: "B08158GKCL",
+      product_details: {
+        product_title: "Test UK Product",
+        product_price: "£49.99",
+        product_original_price: "£59.99",
+        product_photo: "https://example.com/uk-product.jpg",
+        product_availability: "In Stock"
+      },
+      all_product_variations: [
+        { asin: "B08158GKCL", color: "White", size: "8", product_price: "£49.99" }
+      ]
+    }
+  };
+
+  const result = normalizeOpenWebNinjaProduct(payload, resolved);
+  assert.equal(result.marketplace, "Amazon UK");
+  assert.equal(result.marketplaceDomain, "www.amazon.co.uk");
+  assert.equal(result.price.amount, 49.99);
+  assert.equal(result.price.currency, "GBP");
+  assert.equal(result.originalPrice.currency, "GBP");
+  assert.equal(result.variations[0].price.currency, "GBP");
+});
