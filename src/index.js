@@ -1,5 +1,6 @@
 import { fetchOpenWebNinjaProduct } from "./openwebninja.js";
 import { normalizeNextProduct } from "./next-product.js";
+import { extractAsinInventory } from "./asin-extractor.js";
 
 const SHORT_HOSTS = new Set(["amzn.to", "amzn.eu", "a.co"]);
 const AMAZON_HOST_PATTERN = /(^|\.)amazon\.(com|ae|co\.uk)$/i;
@@ -431,6 +432,32 @@ export default {
       return json(result, result.ok ? 200 : 400);
     }
 
+    if (url.pathname === "/api/extract-asins") {
+      if (request.method !== "GET") {
+        return json({ error: "METHOD_NOT_ALLOWED", message: "Only GET requests are supported." }, 405);
+      }
+
+      const inputUrl = url.searchParams.get("url");
+      if (!inputUrl) {
+        return json({ error: "MISSING_URL", message: "The url query parameter is required." }, 400);
+      }
+
+      try {
+        const product = await fetchProduct(env, inputUrl);
+        if (!product.ok) {
+          const status = ["OPENWEBNINJA_NOT_CONFIGURED", "RAPIDAPI_NEXT_NOT_CONFIGURED"].includes(product.error) ? 503 : 400;
+          return json(product, status);
+        }
+        return json(extractAsinInventory(product));
+      } catch (error) {
+        return json({
+          error: "ASIN_EXTRACTION_FAILED",
+          message: "Could not extract ASIN variants from the product provider response.",
+          detail: error instanceof Error ? error.message : String(error)
+        }, 502);
+      }
+    }
+
     if (url.pathname === "/api/product") {
       if (request.method !== "GET") {
         return json({ error: "METHOD_NOT_ALLOWED", message: "Only GET requests are supported." }, 405);
@@ -443,6 +470,7 @@ export default {
 
       try {
         const result = await fetchProduct(env, inputUrl);
+        if (result.ok) result.asinInventory = extractAsinInventory(result);
         const status = result.ok ? 200 : ["OPENWEBNINJA_NOT_CONFIGURED", "RAPIDAPI_NEXT_NOT_CONFIGURED"].includes(result.error) ? 503 : 400;
         return json(result, status);
       } catch (error) {

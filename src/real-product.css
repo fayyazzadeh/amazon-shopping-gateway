@@ -76,3 +76,52 @@
     max-height: 330px;
   }
 }
+
+
+.asin-inventory-panel {
+  margin-top: 14px;
+}
+
+.asin-inventory-panel > strong {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 12px;
+}
+
+.asin-inventory {
+  display: grid;
+  gap: 7px;
+  max-height: 250px;
+  overflow: auto;
+}
+
+.asin-inventory-item {
+  display: grid;
+  gap: 4px;
+  padding: 9px 10px;
+  border: 1px solid #deded8;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 11px;
+}
+
+.asin-inventory-item strong,
+.selected-asin-line code {
+  direction: ltr;
+  font-family: ui-monospace, monospace;
+}
+
+.asin-inventory-item.selected {
+  border-color: #3859a4;
+  background: #f3f6ff;
+}
+
+.asin-inventory-item span {
+  color: #666;
+  line-height: 1.6;
+}
+
+.selected-asin-line {
+  margin-top: 8px;
+  font-size: 11px;
+}

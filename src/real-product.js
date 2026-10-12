@@ -82,6 +82,40 @@ function renderVariations() {
   });
 }
 
+
+function renderAsinInventory(selected) {
+  const root = document.querySelector("#asin-inventory");
+  if (!root) return;
+  root.replaceChildren();
+
+  const inventory = state.product?.asinInventory?.variants || state.product?.variations || [];
+  if (!inventory.length) {
+    const empty = document.createElement("span");
+    empty.textContent = "The provider did not return a list of product variants.";
+    root.appendChild(empty);
+    return;
+  }
+
+  inventory.forEach((variant) => {
+    const item = document.createElement("div");
+    item.className = "asin-inventory-item" + (variant.asin && variant.asin === selected?.asin ? " selected" : "");
+    const heading = document.createElement("strong");
+    heading.textContent = variant.asin || "ASIN unavailable";
+    item.appendChild(heading);
+
+    const attributes = variant.attributes || {};
+    const details = Object.entries(attributes).map(([name, value]) => name + ": " + value);
+    const price = variant.price?.displayAmount ||
+      (variant.price ? variant.price.amount + " " + variant.price.currency : "Price unavailable");
+    details.push(price);
+    if (variant.availability) details.push(variant.availability);
+    const description = document.createElement("span");
+    description.textContent = details.join(" · ");
+    item.appendChild(description);
+    root.appendChild(item);
+  });
+}
+
 function formatCustomerPrice(product) {
   const pricing = product?.pricing;
   if (!pricing?.configured) return "Exchange rate not configured";
@@ -97,6 +131,7 @@ function updateSelection() {
     document.querySelector("#line-product").textContent = price;
     document.querySelector("#availability-text").textContent = state.product?.availability || "The store has not provided availability information.";
     renderGallery(state.product);
+    renderAsinInventory(null);
     return;
   }
 
@@ -112,6 +147,7 @@ function updateSelection() {
   document.querySelector("#availability-text").textContent =
     variation.availability || "The store has not provided availability information.";
   renderGallery(variation);
+  renderAsinInventory(variation);
 }
 
 function renderProduct(product) {
