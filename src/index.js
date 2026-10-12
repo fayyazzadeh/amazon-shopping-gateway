@@ -470,6 +470,7 @@ export default {
 
       try {
         const result = await fetchProduct(env, inputUrl);
+        if (result.ok) result.asinInventory = extractAsinInventory(result);
         const status = result.ok ? 200 : ["OPENWEBNINJA_NOT_CONFIGURED", "RAPIDAPI_NEXT_NOT_CONFIGURED"].includes(result.error) ? 503 : 400;
         return json(result, status);
       } catch (error) {
