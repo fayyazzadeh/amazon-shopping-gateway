@@ -20,16 +20,15 @@ function text(value) {
 }
 
 function readMeta(html, names) {
-  for (const name of names) {
-    const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const patterns = [
-      new RegExp('<meta[^>]+(?:property|name)\\s*=\\s*["\\']' + escaped + '["\\'][^>]+content\\s*=\\s*["\\']([^"\\']*)["\\'][^>]*>', "i"),
-      new RegExp('<meta[^>]+content\\s*=\\s*["\\']([^"\\']*)["\\'][^>]+(?:property|name)\\s*=\\s*["\\']' + escaped + '["\\'][^>]*>', "i")
-    ];
-    for (const pattern of patterns) {
-      const match = html.match(pattern);
-      if (match?.[1]) return decodeEntities(match[1]);
-    }
+  const tags = html.match(/<meta\\b[^>]*>/gi) || [];
+  for (const tag of tags) {
+    const attrs = {};
+    tag.replace(/([a-zA-Z:-]+)\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))/g, (_match, key, doubleQuoted, singleQuoted, bare) => {
+      attrs[key.toLowerCase()] = decodeEntities(doubleQuoted ?? singleQuoted ?? bare ?? "");
+      return _match;
+    });
+    const key = attrs.property || attrs.name;
+    if (key && names.includes(key) && attrs.content) return attrs.content;
   }
   return null;
 }
