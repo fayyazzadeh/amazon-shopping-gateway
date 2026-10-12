@@ -20,6 +20,7 @@ Amazon marketplaces share the product-normalization and API integration layer, w
 - `GET /api/health` — service health check
 - `GET /api/resolve-product?url=...` — validate supported Amazon URLs and extract ASINs
 - `GET /api/product?url=...` — attempt a product lookup through configured provider credentials
+- `GET /api/diagnostics/openwebninja` — check the Worker secret binding and make a live OpenWeb Ninja product request; optionally pass `?url=https%3A%2F%2Fwww.amazon.ae%2Fdp%2FASIN` to test a specific Amazon product
 - `GET /api/diagnostics/next` — report Next connector configuration; `?live=1` attempts a live lookup
 
 ## Planned first release
@@ -33,13 +34,11 @@ Amazon marketplaces share the product-normalization and API integration layer, w
 
 ## API credentials and marketplace caveats
 
-URL recognition does not mean a marketplace API is configured or authorized. Verify provider availability, account eligibility, marketplace-specific credentials/partner tags, current API terms, and actual responses before relying on live product data.
+URL recognition does not mean a marketplace API is configured or authorized. Use `/api/diagnostics/openwebninja` after deploying to distinguish a missing Worker secret from an upstream API failure. Verify the OpenWeb Ninja subscription, quota, supported marketplace, current API terms, and actual responses before relying on live product data.
 
 Current Worker environment variables include:
 
-- Shared Amazon Creators API credentials: `CREATORS_API_CLIENT_ID`, `CREATORS_API_CLIENT_SECRET`
-- Partner tags: `AMAZON_PARTNER_TAG_US`, `AMAZON_PARTNER_TAG_UK`, `AMAZON_PARTNER_TAG_AE`
-- Optional token endpoint overrides: `AMAZON_TOKEN_ENDPOINT_US`, `AMAZON_TOKEN_ENDPOINT_UK`, `AMAZON_TOKEN_ENDPOINT_AE`
+- OpenWeb Ninja Amazon data API: `OPENWEBNINJA_API_KEY` (Cloudflare Worker Production secret; never commit or share its value)
 - Next provider: `RAPIDAPI_KEY`, `RAPIDAPI_NEXT_HOST`, `RAPIDAPI_NEXT_ENDPOINT`
 
 Do not commit secrets to the repository. Endpoint defaults are configuration assumptions, not proof of API access; confirm them against current official documentation and a live authorized request.
