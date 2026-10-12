@@ -104,7 +104,7 @@ function normalizeVariant(variant, currency, host) {
   };
 }
 
-function normalizeProduct(html, resolved, finalUrl) {
+export function normalizeDirectProductHtml(html, resolved, finalUrl) {
   const host = new URL(finalUrl).hostname.toLowerCase();
   const jsonProducts = parseJsonLd(html);
   const product = jsonProducts.find((item) => item.name || item.offers || item.image) || {};
@@ -227,7 +227,7 @@ export async function fetchDirectProduct(resolved) {
   }
 
   try {
-    return normalizeProduct(html, resolved, finalUrl);
+    return normalizeDirectProductHtml(html, resolved, finalUrl);
   } catch (error) {
     return {
       ok: false,
