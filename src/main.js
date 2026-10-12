@@ -96,6 +96,8 @@ app.innerHTML = `
             <div id="variation-status" class="variation-status">Live product data is required to show accurate colors, sizes, images, prices, and Child ASINs.</div>
             <div id="color-options" class="color-options"></div>
             <div id="size-options" class="size-options"></div>
+            <div class="asin-inventory-panel"><strong>Product ASINs</strong><div id="asin-inventory" class="asin-inventory"><span>ASINs will appear when provider data is available.</span></div></div>
+            <div class="selected-asin-line">Selected ASIN: <code id="selected-asin">—</code></div>
           </div>
 
           <div class="availability-note"><span class="dot"></span><span id="availability-text">Availability, shipping, and seller details will be checked when live Amazon data is available.</span></div>
