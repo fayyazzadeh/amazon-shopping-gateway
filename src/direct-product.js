@@ -1,5 +1,5 @@
-const AMAZON_HOST = /(^|\\.)amazon\\.(com|ae|co\\.uk)$/i;
-const NEXT_HOST = /(^|\\.)next\\.co\\.uk$/i;
+const AMAZON_HOST = /(^|\.)amazon\.(com|ae|co\.uk)$/i;
+const NEXT_HOST = /(^|\.)next\.co\.uk$/i;
 const ASIN = /^[A-Z0-9]{10}$/;
 
 function decodeEntities(value) {
@@ -9,7 +9,7 @@ function decodeEntities(value) {
     .replace(/&#39;|&apos;/g, "'")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
-    .replace(/&#(\\d+);/g, (_, n) => String.fromCodePoint(Number(n)))
+    .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)))
     .replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCodePoint(parseInt(n, 16)));
 }
 
@@ -36,7 +36,7 @@ function readMeta(html, names) {
 
 function parseJsonLd(html) {
   const items = [];
-  const pattern = /<script[^>]+type=["']application\\/ld\\+json["'][^>]*>([\\s\\S]*?)<\\/script>/gi;
+  const pattern = /<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
   let match;
   while ((match = pattern.exec(html))) {
     try {
@@ -61,7 +61,7 @@ function parseJsonLd(html) {
 function amount(value) {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   if (typeof value !== "string") return null;
-  const normalized = value.replace(/,/g, "").match(/\\d+(?:\\.\\d{1,2})?/);
+  const normalized = value.replace(/,/g, "").match(/\d+(?:\.\d{1,2})?/);
   return normalized ? Number(normalized[0]) : null;
 }
 
@@ -110,8 +110,8 @@ function normalizeProduct(html, resolved, finalUrl) {
   const product = jsonProducts.find((item) => item.name || item.offers || item.image) || {};
   const currency = currencyFor(host, html);
   const rawTitle = text(product.name) || readMeta(html, ["og:title", "twitter:title"]) ||
-    (html.match(/<title[^>]*>([\\s\\S]*?)<\\/title>/i)?.[1] || "").trim();
-  const title = text(rawTitle?.replace(/\\s*:\\s*Amazon\\.(?:com|co\\.uk|ae).*$/i, ""));
+    (html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1] || "").trim();
+  const title = text(rawTitle?.replace(/\s*:\s*Amazon\.(?:com|co\.uk|ae).*$/i, ""));
   const price = normalizeOffer(product.offers, currency) || (() => {
     const raw = readMeta(html, ["product:price:amount", "og:price:amount"]);
     const value = amount(raw);
