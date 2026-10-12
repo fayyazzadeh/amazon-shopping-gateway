@@ -81,7 +81,8 @@ function normalizeOffer(offer, currency) {
 }
 
 function getBrand(product) {
-  return text(typeof product.brand === "object" ? product.brand.name : product.brand);
+  const brand = product?.brand;
+  return text(brand && typeof brand === "object" ? brand.name : brand);
 }
 
 function normalizeVariant(variant, currency, host) {
