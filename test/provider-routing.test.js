@@ -28,7 +28,7 @@ for (const [marketplace, productUrl] of [
       assert.equal(body.dataSource, "direct-storefront-page");
       assert.equal(body.title, "Direct Amazon Product");
       assert.equal(calls.length, 1);
-      assert.equal(calls[0].url, productUrl.replace(/\\/dp\\/.+$/, "/dp/" + productUrl.split("/dp/")[1]));
+      assert.equal(calls[0].url, productUrl);
       assert.equal(calls[0].options.method, "GET");
     } finally {
       globalThis.fetch = originalFetch;
