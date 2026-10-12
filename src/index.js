@@ -139,6 +139,77 @@ async function getNextDiagnostics(env, liveCheck) {
   }
 }
 
+async function getOpenWebNinjaDiagnostics(env, inputUrl) {
+  const configured = Boolean(env?.OPENWEBNINJA_API_KEY);
+  if (!configured) {
+    return {
+      ok: false,
+      configured: false,
+      liveChecked: false,
+      provider: "OpenWeb Ninja",
+      secretBinding: "OPENWEBNINJA_API_KEY",
+      message: "The running Worker cannot read OPENWEBNINJA_API_KEY. Check the secret on the exact deployed Worker/environment, then deploy a new version."
+    };
+  }
+
+  const targetUrl = inputUrl || "https://www.amazon.com/dp/B09G9FPHY6";
+  const resolved = await resolveAmazonInput(targetUrl);
+  if (!resolved.ok) {
+    return {
+      ok: false,
+      configured: true,
+      liveChecked: false,
+      provider: "OpenWeb Ninja",
+      error: resolved.error,
+      message: resolved.message
+    };
+  }
+
+  try {
+    const product = await fetchOpenWebNinjaProduct(env, resolved);
+    if (!product?.ok) {
+      return {
+        ok: false,
+        configured: true,
+        liveChecked: true,
+        provider: "OpenWeb Ninja",
+        error: product?.error || "OPENWEBNINJA_EMPTY_RESPONSE",
+        message: product?.message || "OpenWeb Ninja returned no usable product data."
+      };
+    }
+
+    return {
+      ok: true,
+      configured: true,
+      liveChecked: true,
+      provider: "OpenWeb Ninja",
+      marketplace: product.marketplace,
+      asin: product.asin,
+      title: product.title,
+      price: product.price,
+      originalPrice: product.originalPrice,
+      currency: product.price?.currency || null,
+      imageAvailable: Boolean(product.image),
+      variationCount: Array.isArray(product.variations) ? product.variations.length : 0,
+      message: "The Worker read its secret and successfully retrieved product data from OpenWeb Ninja."
+    };
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    const match = detail.match(/OPENWEBNINJA_REQUEST_FAILED:(\\d+):/);
+    return {
+      ok: false,
+      configured: true,
+      liveChecked: true,
+      provider: "OpenWeb Ninja",
+      upstreamStatus: match ? Number(match[1]) : null,
+      error: detail.split(":")[0] || "OPENWEBNINJA_REQUEST_FAILED",
+      message: match
+        ? "OpenWeb Ninja rejected or could not fulfill the request (HTTP " + match[1] + "). Check API subscription, quota, marketplace support, and endpoint permissions in the OpenWeb Ninja dashboard."
+        : "The OpenWeb Ninja request failed or returned an unusable response. Check the Worker logs for the request details."
+    };
+  }
+}
+
 async function fetchNextProduct(env, inputUrl) {
   if (!env.RAPIDAPI_KEY || !env.RAPIDAPI_NEXT_HOST || !env.RAPIDAPI_NEXT_ENDPOINT) {
     return {
@@ -405,6 +476,15 @@ export default {
 
     if (url.pathname === "/api/health") {
       return json({ ok: true, service: "amazon-shopping-gateway" });
+    }
+
+    if (url.pathname === "/api/diagnostics/openwebninja") {
+      if (request.method !== "GET") {
+        return json({ error: "METHOD_NOT_ALLOWED", message: "Only GET requests are supported." }, 405);
+      }
+
+      const result = await getOpenWebNinjaDiagnostics(env, url.searchParams.get("url"));
+      return json(result, result.ok ? 200 : result.configured ? 502 : 503);
     }
 
     if (url.pathname === "/api/diagnostics/next") {
