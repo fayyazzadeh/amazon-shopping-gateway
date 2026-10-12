@@ -19,7 +19,8 @@ Amazon marketplaces share the product-normalization and API integration layer, w
 
 - `GET /api/health` — service health check
 - `GET /api/resolve-product?url=...` — validate supported Amazon URLs and extract ASINs
-- `GET /api/product?url=...` — attempt a product lookup through configured provider credentials
+- `GET /api/product?url=...` — fetch the public product page directly from Amazon or Next and parse available metadata
+- `GET /api/diagnostics/next` — check direct Next UK page access; `?live=1` attempts a live lookup
 - `GET /api/diagnostics/next` — report Next connector configuration; `?live=1` attempts a live lookup
 
 ## Planned first release
@@ -33,14 +34,12 @@ Amazon marketplaces share the product-normalization and API integration layer, w
 
 ## API credentials and marketplace caveats
 
-URL recognition does not mean a marketplace API is configured or authorized. Verify provider availability, account eligibility, marketplace-specific credentials/partner tags, current API terms, and actual responses before relying on live product data.
+The direct adapter requests public storefront HTML from the Worker and parses available JSON-LD and metadata. Stores may block or rate-limit automated requests, change their page structure, or omit variation data. The gateway deliberately does not bypass CAPTCHA, bot checks, access controls, or store restrictions. When direct access is blocked, the response reports the failure instead of silently falling back to a third-party provider. Confirm the stores' applicable terms and access rules before commercial use.
 
 Current Worker environment variables include:
 
-- Shared Amazon Creators API credentials: `CREATORS_API_CLIENT_ID`, `CREATORS_API_CLIENT_SECRET`
-- Partner tags: `AMAZON_PARTNER_TAG_US`, `AMAZON_PARTNER_TAG_UK`, `AMAZON_PARTNER_TAG_AE`
-- Optional token endpoint overrides: `AMAZON_TOKEN_ENDPOINT_US`, `AMAZON_TOKEN_ENDPOINT_UK`, `AMAZON_TOKEN_ENDPOINT_AE`
-- Next provider: `RAPIDAPI_KEY`, `RAPIDAPI_NEXT_HOST`, `RAPIDAPI_NEXT_ENDPOINT`
+- No third-party product-data API key is required for direct storefront fetches.
+- Currency conversion and customer-price configuration may use `GBP_TO_IRR`, `USD_TO_IRR`, `CUSTOMER_MARGIN_PERCENT`, and `FIXED_FEE_IRR`.
 
 Do not commit secrets to the repository. Endpoint defaults are configuration assumptions, not proof of API access; confirm them against current official documentation and a live authorized request.
 
