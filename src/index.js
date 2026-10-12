@@ -195,7 +195,7 @@ async function getOpenWebNinjaDiagnostics(env, inputUrl) {
     };
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
-    const match = detail.match(/OPENWEBNINJA_REQUEST_FAILED:(\\d+):/);
+    const match = detail.match(/OPENWEBNINJA_REQUEST_FAILED:(\d+):/);
     return {
       ok: false,
       configured: true,
