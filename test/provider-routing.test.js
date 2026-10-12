@@ -30,7 +30,6 @@ for (const [marketplace, productUrl] of [
       assert.equal(calls.length, 1);
       assert.equal(calls[0].url, productUrl.replace(/\\/dp\\/.+$/, "/dp/" + productUrl.split("/dp/")[1]));
       assert.equal(calls[0].options.method, "GET");
-      assert.equal("OPENWEBNINJA_API_KEY" in {}, false);
     } finally {
       globalThis.fetch = originalFetch;
     }
