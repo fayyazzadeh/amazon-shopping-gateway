@@ -20,10 +20,10 @@ function text(value) {
 }
 
 function readMeta(html, names) {
-  const tags = html.match(/<meta\\b[^>]*>/gi) || [];
+  const tags = html.match(/<meta\b[^>]*>/gi) || [];
   for (const tag of tags) {
     const attrs = {};
-    tag.replace(/([a-zA-Z:-]+)\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))/g, (_match, key, doubleQuoted, singleQuoted, bare) => {
+    tag.replace(/([a-zA-Z:-]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/g, (_match, key, doubleQuoted, singleQuoted, bare) => {
       attrs[key.toLowerCase()] = decodeEntities(doubleQuoted ?? singleQuoted ?? bare ?? "");
       return _match;
     });
